@@ -1,4 +1,4 @@
-<h2 class="text-lg font-semibold mb-3">Income (dividends, fees, transfers)</h2>
+<h2 class="text-lg font-bold mb-3 text-slate-800">Income (dividends, fees, transfers)</h2>
 <p class="text-xs text-slate-500 mb-3">
   These never feed into the gain/loss or tax numbers above -- shown here for context only.
 </p>
@@ -7,7 +7,7 @@
 {% else %}
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
   {% for label, amount in income_totals.items() %}
-  <div class="bg-white rounded-lg shadow p-3">
+  <div class="bg-white rounded-xl shadow-lg p-3 border-l-4 {{ 'border-emerald-500' if amount >= 0 else 'border-rose-500' }}">
     <dt class="text-xs uppercase text-slate-500">{{ label }}</dt>
     <dd class="text-lg font-semibold {{ 'text-green-700' if amount >= 0 else 'text-red-700' }}">{{ amount | usd }}</dd>
   </div>
@@ -16,7 +16,7 @@
 <div class="overflow-x-auto bg-white rounded-lg shadow">
   <table class="min-w-full text-sm">
     <caption class="sr-only">Dividend, fee, and transfer events for this upload</caption>
-    <thead class="bg-slate-100 text-slate-700">
+    <thead class="bg-gradient-to-r from-teal-600 to-cyan-600 text-white">
       <tr>
         <th scope="col" class="px-3 py-2 text-left">Date</th>
         <th scope="col" class="px-3 py-2 text-left">Action</th>

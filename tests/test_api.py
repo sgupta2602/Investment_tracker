@@ -43,3 +43,31 @@ def test_home_shows_upload_form_when_no_data(client):
     resp = client.get("/")
     assert resp.status_code == 200
     assert "Upload your broker transaction CSV" in resp.text
+
+
+def test_upload_page_always_reachable_even_after_data_exists(client):
+    """Regression test: '/upload' must always render the form, not
+    redirect back into a dashboard (that was the original bug -- the nav
+    link pointed at '/' which just bounced you back to existing data)."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+    resp = client.get("/upload")
+    assert resp.status_code == 200
+    assert "Upload your broker transaction CSV" in resp.text
+
+
+def test_overview_shows_performance_charts_after_upload(client):
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+    resp = client.get("/overview")
+    assert resp.status_code == 200
+    assert "cumulativeChart" in resp.text
+    assert "termChart" in resp.text
+    assert "periodChart" in resp.text
+
+
+def test_home_redirects_to_overview_not_stale_dashboard(client):
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+    resp = client.get("/", follow_redirects=False)
+    assert resp.headers["location"] == "/overview"

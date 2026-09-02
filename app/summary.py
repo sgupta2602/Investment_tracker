@@ -41,3 +41,19 @@ def gains_losses_by_term(trades: list[dict]) -> dict:
             "rate": LONG_TERM_RATE,
         },
     }
+
+
+def performance_by_upload(all_trades: list[dict], uploads: list[dict]) -> list[dict]:
+    """One performance snapshot per upload, oldest first -- feeds the
+    Overview dashboard's per-period chart."""
+    by_upload: dict[int, list[dict]] = {}
+    for t in all_trades:
+        by_upload.setdefault(t["upload_id"], []).append(t)
+
+    ordered_uploads = sorted(uploads, key=lambda u: u["id"])
+    series = []
+    for u in ordered_uploads:
+        trades = by_upload.get(u["id"], [])
+        perf = monthly_performance(trades)
+        series.append({"upload_id": u["id"], "label": u["filename"], **perf})
+    return series

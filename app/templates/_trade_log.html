@@ -1,11 +1,11 @@
-<h2 class="text-lg font-semibold mb-3">Trade Log (full history, running totals)</h2>
+<h2 class="text-lg font-bold mb-3 text-slate-800">Trade Log (full history, running totals)</h2>
 {% if not all_trades %}
 <p class="text-slate-600 text-sm">No closed trades yet -- upload a statement to get started.</p>
 {% else %}
 <div class="overflow-x-auto bg-white rounded-lg shadow">
   <table class="min-w-full text-xs">
     <caption class="sr-only">Closed trades with realized gain/loss, holding period, and cumulative totals</caption>
-    <thead class="bg-slate-100 text-slate-700">
+    <thead class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white">
       <tr>
         <th scope="col" class="px-2 py-2 text-left">Account</th>
         <th scope="col" class="px-2 py-2 text-left">Sell Date</th>
@@ -30,7 +30,7 @@
     </thead>
     <tbody>
       {% for t in all_trades %}
-      <tr class="border-t border-slate-200 {% if t.upload_id == current_upload_id %}bg-blue-50{% endif %}">
+      <tr class="border-t border-slate-200 {% if t.upload_id == current_upload_id %}bg-violet-50{% endif %}">
         <td class="px-2 py-1">{{ t.account }}</td>
         <td class="px-2 py-1">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-2 py-1 font-medium">{{ t.ticker }}</td>
@@ -46,7 +46,9 @@
         <td class="px-2 py-1 text-right font-semibold {{ 'text-green-700' if t.gain_loss >= 0 else 'text-red-700' }}">{{ t.gain_loss | usd }}</td>
         <td class="px-2 py-1 text-right">{{ t.pct_gain_loss | pct }}</td>
         <td class="px-2 py-1 text-right">{{ t.gain_per_month | pct }}</td>
-        <td class="px-2 py-1">{{ t.gain_type }}</td>
+        <td class="px-2 py-1">
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ 'bg-sky-100 text-sky-800' if t.gain_type == 'Long' else 'bg-orange-100 text-orange-800' }}">{{ t.gain_type }}</span>
+        </td>
         <td class="px-2 py-1 text-right">{{ t.cumulative_gain | usd }}</td>
         <td class="px-2 py-1 text-right">{{ t.cumulative_gain_pct | pct }}</td>
         <td class="px-2 py-1 text-right">{{ t.estimated_tax | usd }}</td>
@@ -55,5 +57,5 @@
     </tbody>
   </table>
 </div>
-<p class="text-xs text-slate-500 mt-2">Rows highlighted in blue belong to the period currently selected above.</p>
+<p class="text-xs text-slate-500 mt-2">Rows highlighted in violet belong to the period currently selected above.</p>
 {% endif %}

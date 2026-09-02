@@ -3,6 +3,7 @@ performance + gains/losses/tax + income breakdown that used to be a
 manual Excel chore."""
 from __future__ import annotations
 
+import json
 import shutil
 import tempfile
 from contextlib import asynccontextmanager
@@ -18,7 +19,7 @@ from app.income import extract_income_events, income_totals
 from app.calc import enrich_trades
 from app.matching import match_transactions
 from app.parsing import extract_account_label, parse_transactions_csv
-from app.summary import gains_losses_by_term, monthly_performance
+from app.summary import gains_losses_by_term, monthly_performance, performance_by_upload
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -33,6 +34,7 @@ app = FastAPI(title="Investment Tracker", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.filters["usd"] = lambda v: ("-$" if v < 0 else "$") + f"{abs(v):,.2f}"
 templates.env.filters["pct"] = lambda v: f"{v * 100:,.2f}%"
+templates.env.filters["tojson"] = json.dumps
 
 
 @app.get("/")
@@ -40,7 +42,15 @@ def home(request: Request):
     uploads = repo.list_uploads()
     if not uploads:
         return templates.TemplateResponse(request, "upload.html", {"uploads": uploads})
-    return RedirectResponse(url=f"/dashboard/{uploads[0]['id']}")
+    return RedirectResponse(url="/overview")
+
+
+@app.get("/upload")
+def upload_form(request: Request):
+    """Always shows the upload form -- distinct from '/' so that once
+    data exists, there's still a real way back here to add another
+    month's statement (previously this was a dead loop)."""
+    return templates.TemplateResponse(request, "upload.html", {"uploads": repo.list_uploads()})
 
 
 @app.post("/upload")
@@ -122,5 +132,32 @@ def dashboard(request: Request, upload_id: int):
             "income_totals": income_totals(income_events),
             "unmatched_closes": match_result.unmatched_closes,
             "open_positions": match_result.open_positions,
+        },
+    )
+
+
+@app.get("/overview")
+def overview(request: Request):
+    uploads = repo.list_uploads()
+    if not uploads:
+        return RedirectResponse(url="/upload")
+
+    all_trades = repo.load_all_closed_trades()
+    period_series = performance_by_upload(all_trades, uploads)
+    cumulative_points = [
+        {"date": t["sell_date"].strftime("%m/%d/%Y"), "value": round(t["cumulative_gain"], 2)}
+        for t in all_trades
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "overview.html",
+        {
+            "uploads": uploads,
+            "performance": monthly_performance(all_trades),
+            "term_breakdown": gains_losses_by_term(all_trades),
+            "period_series": period_series,
+            "cumulative_points": cumulative_points,
+            "trade_count": len(all_trades),
         },
     )
