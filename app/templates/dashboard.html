@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Investment Tracker{% endblock %}
+{% block content %}
+
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <div>
+    <label for="upload-select" class="text-sm font-medium mr-2">Viewing period:</label>
+    <select
+      id="upload-select"
+      class="border border-slate-300 rounded-md px-2 py-1 text-sm"
+      onchange="window.location = '/dashboard/' + this.value"
+    >
+      {% for u in uploads %}
+      <option value="{{ u.id }}" {% if u.id == current_upload_id %}selected{% endif %}>
+        {{ u.filename }} - uploaded {{ u.uploaded_at }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <a href="/" class="text-sm text-blue-700 underline focus:outline-none focus:ring-2 focus:ring-blue-700 rounded">
+    Upload another statement
+  </a>
+</div>
+
+<div role="tablist" aria-label="Report sections" class="flex gap-2 border-b border-slate-300 mb-4">
+  <button type="button" role="tab" id="tab-btn-log" aria-controls="tab-log" aria-selected="true"
+    class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-blue-700 text-blue-700"
+    onclick="showTab('log')">Trade Log</button>
+  <button type="button" role="tab" id="tab-btn-perf" aria-controls="tab-perf" aria-selected="false"
+    class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-600"
+    onclick="showTab('perf')">Monthly Performance</button>
+  <button type="button" role="tab" id="tab-btn-tax" aria-controls="tab-tax" aria-selected="false"
+    class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-600"
+    onclick="showTab('tax')">Gains / Losses / Tax</button>
+  <button type="button" role="tab" id="tab-btn-income" aria-controls="tab-income" aria-selected="false"
+    class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-600"
+    onclick="showTab('income')">Income</button>
+  <button type="button" role="tab" id="tab-btn-review" aria-controls="tab-review" aria-selected="false"
+    class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-600"
+    onclick="showTab('review')">
+    Needs Review
+    {% if unmatched_closes %}<span class="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-xs w-5 h-5">{{ unmatched_closes|length }}</span>{% endif %}
+  </button>
+</div>
+
+<section id="tab-log" role="tabpanel" aria-labelledby="tab-btn-log">
+  {% include "_trade_log.html" %}
+</section>
+
+<section id="tab-perf" role="tabpanel" aria-labelledby="tab-btn-perf" hidden>
+  {% include "_performance.html" %}
+</section>
+
+<section id="tab-tax" role="tabpanel" aria-labelledby="tab-btn-tax" hidden>
+  {% include "_tax.html" %}
+</section>
+
+<section id="tab-income" role="tabpanel" aria-labelledby="tab-btn-income" hidden>
+  {% include "_income.html" %}
+</section>
+
+<section id="tab-review" role="tabpanel" aria-labelledby="tab-btn-review" hidden>
+  {% include "_review.html" %}
+</section>
+
+<script>
+  function showTab(name) {
+    const panels = ["log", "perf", "tax", "income", "review"];
+    panels.forEach((p) => {
+      const panel = document.getElementById("tab-" + p);
+      const btn = document.getElementById("tab-btn-" + p);
+      const active = p === name;
+      panel.hidden = !active;
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+      btn.classList.toggle("border-blue-700", active);
+      btn.classList.toggle("text-blue-700", active);
+      btn.classList.toggle("border-transparent", !active);
+      btn.classList.toggle("text-slate-600", !active);
+    });
+  }
+</script>
+{% endblock %}

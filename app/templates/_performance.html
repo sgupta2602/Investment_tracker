@@ -1,0 +1,25 @@
+<h2 class="text-lg font-semibold mb-3">Monthly Performance</h2>
+{% if not month_trades %}
+<p class="text-slate-600 text-sm">No closed trades in this upload.</p>
+{% else %}
+<dl class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+  <div class="bg-white rounded-lg shadow p-4">
+    <dt class="text-xs uppercase text-slate-500">Realized Investment</dt>
+    <dd class="text-xl font-semibold">{{ performance.realized_investment | usd }}</dd>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4">
+    <dt class="text-xs uppercase text-slate-500">Cost Basis</dt>
+    <dd class="text-xl font-semibold">{{ performance.cost_basis | usd }}</dd>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4">
+    <dt class="text-xs uppercase text-slate-500">Gain</dt>
+    <dd class="text-xl font-semibold {{ 'text-green-700' if performance.gain >= 0 else 'text-red-700' }}">
+      {{ performance.gain | usd }}
+    </dd>
+  </div>
+  <div class="bg-white rounded-lg shadow p-4">
+    <dt class="text-xs uppercase text-slate-500">Yield</dt>
+    <dd class="text-xl font-semibold">{{ performance.yield_pct | pct }}</dd>
+  </div>
+</dl>
+{% endif %}
