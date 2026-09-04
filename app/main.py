@@ -16,8 +16,8 @@ from fastapi.templating import Jinja2Templates
 from app import repository as repo
 from app.db import init_db
 from app.income import extract_income_events, income_totals
-from app.calc import enrich_trades
-from app.matching import match_transactions
+from app.calc import LONG_TERM_RATE, LONG_TERM_THRESHOLD_DAYS, SHORT_TERM_RATE, enrich_trades
+from app.matching import OPTION_MULTIPLIER, match_transactions
 from app.parsing import extract_account_label, parse_transactions_csv
 from app.summary import gains_losses_by_term, monthly_performance, performance_by_upload
 
@@ -159,5 +159,23 @@ def overview(request: Request):
             "period_series": period_series,
             "cumulative_points": cumulative_points,
             "trade_count": len(all_trades),
+        },
+    )
+
+
+@app.get("/glossary")
+def glossary(request: Request):
+    """Static reference page explaining every formula/rule the engine
+    applies. Rates/thresholds are read from the actual constants in
+    calc.py / matching.py -- never hardcoded here -- so this page can
+    never drift out of sync with what the app actually computes."""
+    return templates.TemplateResponse(
+        request,
+        "glossary.html",
+        {
+            "long_term_rate": LONG_TERM_RATE,
+            "short_term_rate": SHORT_TERM_RATE,
+            "long_term_threshold_days": LONG_TERM_THRESHOLD_DAYS,
+            "option_multiplier": OPTION_MULTIPLIER,
         },
     )

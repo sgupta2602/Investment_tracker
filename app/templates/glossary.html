@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Glossary - Investment Tracker{% endblock %}
+{% block content %}
+
+<h2 class="text-xl font-bold mb-1 text-slate-800">Formula Glossary</h2>
+<p class="text-sm text-slate-500 mb-6">
+  Every calculation this app makes, explained in one place. Rates and
+  thresholds shown here are read live from the code -- if a rule ever
+  changes, this page changes with it.
+</p>
+
+<!-- Per-trade formulas -->
+<div class="bg-white rounded-xl shadow-lg p-5 mb-6">
+  <h3 class="font-semibold text-slate-700 mb-1">1. Per-Trade Formulas</h3>
+  <p class="text-sm text-slate-500 mb-4">
+    Applied to each closed trade (a matched buy/sell or open/close pair) --
+    a direct port of the original spreadsheet's column logic.
+  </p>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <caption class="sr-only">Per-trade formulas: field name, formula, and explanation</caption>
+      <thead class="bg-indigo-50 text-indigo-900">
+        <tr>
+          <th scope="col" class="px-3 py-2 text-left w-56">Field</th>
+          <th scope="col" class="px-3 py-2 text-left w-64">Formula</th>
+          <th scope="col" class="px-3 py-2 text-left">What it means</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200">
+        <tr>
+          <td class="px-3 py-2 font-semibold">Realized Value</td>
+          <td class="px-3 py-2"><code>quantity &times; sell_price</code></td>
+          <td class="px-3 py-2 text-slate-600">Total proceeds from closing the position (fee-net -- see note below).</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Cost Basis</td>
+          <td class="px-3 py-2"><code>quantity &times; cost_price</code></td>
+          <td class="px-3 py-2 text-slate-600">What the position originally cost (fee-inclusive).</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Gain / Loss</td>
+          <td class="px-3 py-2"><code>Realized Value &minus; Cost Basis</code></td>
+          <td class="px-3 py-2 text-slate-600">Dollar profit or loss on the closed trade.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">% Gain / Loss</td>
+          <td class="px-3 py-2"><code>Gain &divide; Cost Basis</code></td>
+          <td class="px-3 py-2 text-slate-600">Return on the trade as a percentage. 0% if cost basis is 0.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Holding Period (months)</td>
+          <td class="px-3 py-2"><code>(sell_date &minus; buy_date).days &divide; 30</code></td>
+          <td class="px-3 py-2 text-slate-600">Approximate months held -- a simple day/30 conversion, not calendar-month-aware.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Gain / Month</td>
+          <td class="px-3 py-2"><code>% Gain &divide; Holding Period (months)</code></td>
+          <td class="px-3 py-2 text-slate-600">Return rate normalized by how long the trade was held. 0 if held under a month (rounds to 0 holding period).</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Gain Type</td>
+          <td class="px-3 py-2"><code>held &gt; {{ long_term_threshold_days }} days ? "Long" : "Short"</code></td>
+          <td class="px-3 py-2 text-slate-600">Determines which tax rate applies below.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Estimated Tax</td>
+          <td class="px-3 py-2"><code>Gain &times; rate</code> (gains only)</td>
+          <td class="px-3 py-2 text-slate-600">
+            Long-term rate <strong>{{ long_term_rate | pct }}</strong>, short-term rate
+            <strong>{{ short_term_rate | pct }}</strong>. Losing trades owe <strong>$0</strong> --
+            this column never nets a loss against a gain (see Section 3 for the
+            monthly summary, which does net within a term).
+          </td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Cumulative Investment</td>
+          <td class="px-3 py-2"><code>running sum of Cost Basis</code></td>
+          <td class="px-3 py-2 text-slate-600">Running total across <strong>all uploads ever made</strong>, in sell-date order -- never resets between statements.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Cumulative Gain</td>
+          <td class="px-3 py-2"><code>running sum of Gain / Loss</code></td>
+          <td class="px-3 py-2 text-slate-600">Same running-total treatment as Cumulative Investment.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Cumulative Gain %</td>
+          <td class="px-3 py-2"><code>(Cum. Gain &minus; Cum. Investment) &divide; Cum. Investment</code></td>
+          <td class="px-3 py-2 text-slate-600">Overall return-to-date across the full trade history.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Tax rules -->
+<div class="bg-white rounded-xl shadow-lg p-5 mb-6">
+  <h3 class="font-semibold text-slate-700 mb-1">2. Tax Rules</h3>
+  <p class="text-sm text-slate-500 mb-4">Confirmed decisions -- flat rates, not bracket-based.</p>
+  <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+    <li><strong>Long-term</strong> (held more than {{ long_term_threshold_days }} days): flat <strong>{{ long_term_rate | pct }}</strong>.</li>
+    <li><strong>Short-term</strong> (held {{ long_term_threshold_days }} days or fewer): flat <strong>{{ short_term_rate | pct }}</strong>.</li>
+    <li>Tax only ever applies to <strong>gains</strong> at the per-trade level -- a loss never generates a negative tax / refund on its own row.</li>
+  </ul>
+</div>
+
+<!-- FIFO matching -->
+<div class="bg-white rounded-xl shadow-lg p-5 mb-6">
+  <h3 class="font-semibold text-slate-700 mb-1">3. FIFO Lot Matching</h3>
+  <p class="text-sm text-slate-500 mb-4">
+    How raw broker transactions become the closed trades that feed Section 1's formulas.
+  </p>
+  <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+    <li><strong>First-In-First-Out:</strong> the oldest open lot for a symbol is always closed first. No specific-lot override (a v2 feature if ever needed).</li>
+    <li><strong>Options multiplier:</strong> option contract quantities are converted to underlying-share-equivalent units by multiplying by <strong>{{ option_multiplier }}</strong> before matching (1 contract = {{ option_multiplier }} units).</li>
+    <li><strong>Opening actions:</strong> <code>Buy</code>, <code>Buy to Open</code>.</li>
+    <li><strong>Closing actions:</strong> <code>Sell</code>, <code>Sell to Close</code>, <code>Expired</code> (an expiration closes at <strong>$0</strong> proceeds).</li>
+    <li><strong>Partial fills:</strong> if a closing transaction is larger than the oldest lot, it consumes that lot fully and continues into the next-oldest lot -- can produce multiple closed-trade rows from one closing transaction.</li>
+    <li><strong>Unmatched closes:</strong> if a close has no matching open lot in the uploaded history (usually because the position was opened before your earliest statement), it's flagged on the Review tab instead of silently guessed at.</li>
+    <li><strong>Open positions:</strong> any lot with remaining unmatched units at the end of processing shows up as a currently-open position.</li>
+  </ul>
+</div>
+
+<!-- Fees -->
+<div class="bg-white rounded-xl shadow-lg p-5 mb-6">
+  <h3 class="font-semibold text-slate-700 mb-1">4. Fees &amp; Cost Basis</h3>
+  <p class="text-sm text-slate-500 mb-4">A deliberate, more tax-accurate departure from the original spreadsheet (which ignored fees).</p>
+  <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+    <li>Opening-side fees are folded into <strong>cost_price</strong>: <code>fee_per_unit = fees &divide; units</code>, added to the lot's unit price.</li>
+    <li>Closing-side fees are folded into <strong>sell_price</strong>: <code>effective_sell_price = close_price &minus; fee_per_unit</code>.</li>
+    <li>Net effect: fees reduce your gain (or increase your loss) automatically, on both legs of the trade.</li>
+  </ul>
+</div>
+
+<!-- Monthly / period summaries -->
+<div class="bg-white rounded-xl shadow-lg p-5 mb-6">
+  <h3 class="font-semibold text-slate-700 mb-1">5. Monthly / Period Summaries</h3>
+  <p class="text-sm text-slate-500 mb-4">Roll-ups shown on the Dashboard and Overview tabs, built from the per-trade rows above.</p>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <caption class="sr-only">Monthly and period summary formulas</caption>
+      <thead class="bg-indigo-50 text-indigo-900">
+        <tr>
+          <th scope="col" class="px-3 py-2 text-left w-56">Field</th>
+          <th scope="col" class="px-3 py-2 text-left w-64">Formula</th>
+          <th scope="col" class="px-3 py-2 text-left">Notes</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200">
+        <tr>
+          <td class="px-3 py-2 font-semibold">Realized Investment</td>
+          <td class="px-3 py-2"><code>sum(Realized Value)</code></td>
+          <td class="px-3 py-2 text-slate-600">Across all trades in the period.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Yield %</td>
+          <td class="px-3 py-2"><code>sum(Gain) &divide; sum(Cost Basis)</code></td>
+          <td class="px-3 py-2 text-slate-600">Blended return across the whole period, not an average of per-trade %s.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold">Tax by Term (Short / Long)</td>
+          <td class="px-3 py-2"><code>(gains + losses in that term) &times; rate</code></td>
+          <td class="px-3 py-2 text-slate-600">
+            <strong>Different from the per-trade Estimated Tax column</strong> --
+            this one nets losses against gains <em>within the same term</em>
+            before applying the rate, so a losing trade can reduce the
+            period's estimated tax. The per-trade column never does this.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Parsing rules -->
+<div class="bg-white rounded-xl shadow-lg p-5 mb-6">
+  <h3 class="font-semibold text-slate-700 mb-1">6. CSV Parsing Rules</h3>
+  <p class="text-sm text-slate-500 mb-4">How raw broker export rows get cleaned up before anything else runs.</p>
+  <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+    <li><strong>Option symbols</strong> like <code>AMZN 08/21/2026 245.00 C</code> are parsed into underlying ticker, expiration, strike, and right (Call/Put).</li>
+    <li><strong>Settlement vs. effective date:</strong> rows formatted as <code>08/24/2026 as of 08/21/2026</code> (common on <code>Expired</code> rows) use the <em>as-of</em> date -- what actually matters for holding period and tax-year purposes -- not the later settlement date.</li>
+    <li><strong>Account label:</strong> pulled from the uploaded filename via a masked pattern like <code>XXX939</code> (e.g. <code>Joint_Tenant_XXX939_Transactions_...csv</code>).</li>
+  </ul>
+</div>
+
+<!-- Income -->
+<div class="bg-white rounded-xl shadow-lg p-5">
+  <h3 class="font-semibold text-slate-700 mb-1">7. Income Tab (Bonus, Not Tax-Relevant)</h3>
+  <p class="text-sm text-slate-500 mb-4">
+    Shown for context only -- these never feed into the gain/loss or tax
+    formulas above.
+  </p>
+  <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+    <li><strong>Included actions:</strong> Cash Dividend, Qualified Dividend, ADR Mgmt Fee, Foreign Tax Paid, MoneyLink Transfer.</li>
+    <li><strong>Totals</strong> are a simple sum of the <code>Amount</code> column per action type, plus a grand total across all of them.</li>
+  </ul>
+</div>
+
+{% endblock %}
