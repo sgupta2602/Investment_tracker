@@ -104,11 +104,11 @@ def replace_closed_trades(enriched_trades: list[dict]) -> None:
         conn.executemany(
             """INSERT INTO closed_trades
                (upload_id, account, sell_date, ticker, quantity, equity_type,
-                expiration, sell_price, strike_price, cost_price, buy_date,
+                expiration, sell_price, strike_price, cost_price, break_even, buy_date,
                 realized_value, cost_basis, cumulative_investment,
                 hold_period_months, gain_loss, pct_gain_loss, gain_per_month,
                 gain_type, cumulative_gain, cumulative_gain_pct, estimated_tax)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             [
                 (
                     t["upload_id"],
@@ -121,6 +121,7 @@ def replace_closed_trades(enriched_trades: list[dict]) -> None:
                     t["sell_price"],
                     t.get("strike_price"),
                     t["cost_price"],
+                    t["break_even"],
                     _fmt_dt(t["buy_date"]),
                     t["realized_value"],
                     t["cost_basis"],

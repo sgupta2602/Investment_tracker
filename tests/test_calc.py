@@ -71,3 +71,13 @@ def test_cumulative_columns_run_across_rows_in_order():
 def test_hold_period_uses_30_day_months_like_the_sheet():
     [row] = enrich_trades([_trade(buy_date=datetime(2026, 1, 1), sell_date=datetime(2026, 1, 31))])
     assert row["hold_period_months"] == pytest.approx(1.0)
+
+
+def test_break_even_is_strike_plus_cost_price_for_options():
+    [row] = enrich_trades([_trade(strike_price=245.0, cost_price=6.5)])
+    assert row["break_even"] == pytest.approx(251.5)
+
+
+def test_break_even_collapses_to_cost_price_for_shares_with_no_strike():
+    [row] = enrich_trades([_trade(strike_price=None, cost_price=10.0)])
+    assert row["break_even"] == pytest.approx(10.0)

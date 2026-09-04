@@ -38,6 +38,11 @@ def enrich_trades(trades: list[dict]) -> list[dict]:
         hold_period_months = (t["sell_date"] - t["buy_date"]).days / 30
         gain_per_month = (pct_gain_loss / hold_period_months) if hold_period_months else 0.0
         gain_type = _gain_type(t["buy_date"], t["sell_date"])
+        # Sheet's "Break Even" (J) = Strike Price + Cost Price, both per-unit.
+        # For Shares, Strike Price is blank -- Excel treats a blank cell as 0
+        # in addition, so Break Even collapses to just Cost Price. Purely
+        # informational: no other formula in the sheet consumes this column.
+        break_even = (t.get("strike_price") or 0.0) + t["cost_price"]
 
         cumulative_investment += cost_basis
         cumulative_gain += gain_loss
@@ -53,6 +58,7 @@ def enrich_trades(trades: list[dict]) -> list[dict]:
                 **t,
                 "realized_value": realized_value,
                 "cost_basis": cost_basis,
+                "break_even": break_even,
                 "cumulative_investment": cumulative_investment,
                 "hold_period_months": hold_period_months,
                 "gain_loss": gain_loss,

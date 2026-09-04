@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS closed_trades (
     sell_price REAL NOT NULL,
     strike_price REAL,
     cost_price REAL NOT NULL,
+    break_even REAL,
     buy_date TEXT NOT NULL,
     realized_value REAL NOT NULL,
     cost_basis REAL NOT NULL,
@@ -71,6 +72,20 @@ def init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Idempotent column additions for schema changes made after the table
+    already existed on someone's machine. SQLite's ALTER TABLE has no
+    ADD COLUMN IF NOT EXISTS, so we just swallow the duplicate-column error
+    on databases that already have it (either from CREATE TABLE above on a
+    fresh install, or from a previous run of this same migration)."""
+    try:
+        conn.execute("ALTER TABLE closed_trades ADD COLUMN break_even REAL")
+    except sqlite3.OperationalError as e:
+        if "duplicate column" not in str(e):
+            raise
 
 
 @contextmanager
