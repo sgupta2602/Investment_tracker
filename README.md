@@ -37,6 +37,13 @@ Excel exercise every month.
 
 ## Running it
 
+Easiest: double-click **`run.command`** in Finder. It activates the venv,
+starts the server on port **8001**, and opens your browser automatically.
+(Deliberately not 8000 -- that's reserved for the separate budget-app
+project on this machine, so the two never collide.)
+
+Manual equivalent:
+
 ```bash
 uv venv
 source .venv/bin/activate
@@ -44,10 +51,10 @@ uv pip install --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api
   --allow-insecure-host pypi.ci.artifacts.walmart.com \
   fastapi uvicorn jinja2 python-multipart
 
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8001
 ```
 
-Then open http://127.0.0.1:8000 and upload a CSV.
+Then open http://127.0.0.1:8001 and upload a CSV.
 
 ## Running tests
 
