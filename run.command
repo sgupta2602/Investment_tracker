@@ -8,8 +8,13 @@ cd "$(dirname "$0")"
 PORT=8001
 URL="http://127.0.0.1:$PORT"
 
-if [ ! -d ".venv" ]; then
-  echo "No .venv found -- setting one up first (only happens once)..."
+if [ ! -d ".venv" ] || ! .venv/bin/python3 --version >/dev/null 2>&1; then
+  # Missing OR broken (e.g. this folder was copied from another machine --
+  # a venv's python binary is a symlink tied to the machine it was built
+  # on, by username/architecture/uv install path, so a copied .venv
+  # almost never survives the move intact).
+  echo "No usable .venv found -- (re)creating one for this machine..."
+  rm -rf .venv
   uv venv
   source .venv/bin/activate
   uv pip install --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/external-pypi/simple \
