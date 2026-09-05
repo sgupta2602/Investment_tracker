@@ -107,6 +107,21 @@ def _rebuild_closed_trades() -> None:
     repo.replace_closed_trades(enriched)
 
 
+@app.post("/delete_upload/{upload_id}")
+def delete_upload(upload_id: int):
+    """Deletes a statement and re-derives closed_trades from whatever
+    uploads remain -- see repository.delete_upload() for why the rebuild
+    (not a targeted delete) is what correctly un-does cross-upload
+    matches."""
+    repo.delete_upload(upload_id)
+    _rebuild_closed_trades()
+
+    remaining = repo.list_uploads()
+    if not remaining:
+        return RedirectResponse(url="/upload", status_code=303)
+    return RedirectResponse(url="/overview", status_code=303)
+
+
 @app.get("/dashboard/{upload_id}")
 def dashboard(request: Request, upload_id: int):
     uploads = repo.list_uploads()

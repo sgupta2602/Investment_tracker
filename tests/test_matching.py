@@ -26,27 +26,36 @@ def test_matches_option_buy_to_open_with_sell_to_close(transactions):
     assert abcd.account == "TEST123"
 
 
-def test_expired_option_treated_as_total_loss_at_zero_sell_price(transactions):
+def test_expired_options_are_ignored_for_now_and_leave_the_open_leg_dangling(transactions):
+    """SCOPE (current pass): 'Expired' is no longer a recognized closing
+    action. The Buy to Open leg still creates a lot (it's a real option
+    open) but nothing ever closes it now, so it surfaces as an open
+    position -- even though in reality the contract already lapsed. This
+    is a known, deliberate trade-off for the current narrowed scope."""
     result = match_transactions(transactions)
-    wxyz = next(t for t in result.closed_trades if t.ticker == "WXYZ")
-    assert wxyz.sell_price == 0.0
-    assert wxyz.quantity == 100  # 1 contract * 100
+    assert not any(t.ticker == "WXYZ" for t in result.closed_trades)
+    wxyz_open = next(p for p in result.open_positions if p["symbol"] == "WXYZ 01/16/2026 10.00 P")
+    assert wxyz_open["remaining_units"] == 100
 
 
-def test_matches_plain_share_buy_and_sell(transactions):
+def test_plain_share_trades_are_ignored_entirely():
+    """SCOPE (current pass): only options via Buy to Open / Sell to Close
+    are processed. OLDCO's plain Buy/Sell (shares) should not appear
+    anywhere -- not closed, not open, not unmatched."""
+    txns = parse_transactions_csv(FIXTURE, account="TEST123")
+    result = match_transactions(txns)
+    assert not any(t.ticker == "OLDCO" for t in result.closed_trades)
+    assert not any(p["symbol"] == "OLDCO" for p in result.open_positions)
+    assert not any(u["symbol"] == "OLDCO" for u in result.unmatched_closes)
+
+
+def test_only_the_clean_options_round_trip_closes_in_the_fixture(transactions):
     result = match_transactions(transactions)
-    oldco = next(t for t in result.closed_trades if t.ticker == "OLDCO")
-    assert oldco.equity_type == "Shares"
-    assert oldco.quantity == 100
-    assert oldco.cost_price == pytest.approx(20.00)
-    assert oldco.sell_price == pytest.approx(24.99)
-
-
-def test_no_unmatched_or_open_positions_left_in_clean_fixture(transactions):
-    result = match_transactions(transactions)
+    assert len(result.closed_trades) == 1
+    assert result.closed_trades[0].ticker == "ABCD"
+    # WXYZ's dangling open leg is the one expected open position (see above).
+    assert len(result.open_positions) == 1
     assert result.unmatched_closes == []
-    assert result.open_positions == []
-    assert len(result.closed_trades) == 3
 
 
 def test_partial_close_leaves_remaining_open_lot():
@@ -75,14 +84,14 @@ def test_fifo_splits_close_across_multiple_lots():
     """Two separate opening lots at different prices, closed by one order --
     should produce two closed-trade rows, oldest lot consumed first."""
     txns = [
-        Transaction(datetime(2026, 1, 1), "Buy", "BAZ", "", 50, 10.0, 0.0, -500.0),
-        Transaction(datetime(2026, 1, 2), "Buy", "BAZ", "", 50, 12.0, 0.0, -600.0),
-        Transaction(datetime(2026, 1, 10), "Sell", "BAZ", "", 80, 15.0, 0.0, 1200.0),
+        Transaction(datetime(2026, 1, 1), "Buy to Open", "BAZ 06/19/2026 5.00 C", "", 50, 10.0, 0.0, -50000.0, "BAZ"),
+        Transaction(datetime(2026, 1, 2), "Buy to Open", "BAZ 06/19/2026 5.00 C", "", 50, 12.0, 0.0, -60000.0, "BAZ"),
+        Transaction(datetime(2026, 1, 10), "Sell to Close", "BAZ 06/19/2026 5.00 C", "", 80, 15.0, 0.0, 120000.0, "BAZ"),
     ]
     result = match_transactions(txns)
     assert len(result.closed_trades) == 2
     first, second = sorted(result.closed_trades, key=lambda t: t.cost_price)
-    assert first.quantity == 50
+    assert first.quantity == 5000   # 50 contracts * 100
     assert first.cost_price == 10.0
-    assert second.quantity == 30
+    assert second.quantity == 3000  # 30 contracts * 100
     assert second.cost_price == 12.0

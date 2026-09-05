@@ -38,6 +38,20 @@ def list_uploads() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def delete_upload(upload_id: int) -> None:
+    """Removes a statement and everything filed under it (raw transactions,
+    income events). Deliberately does NOT touch closed_trades here --
+    main.py always calls _rebuild_closed_trades() right after, which
+    re-matches from scratch across whatever uploads remain. That's the
+    only way to correctly un-wind a cross-upload trade (e.g. a Buy to
+    Open from a deleted statement that had matched a Sell to Close in a
+    statement still on file) without hand-rolling partial-undo logic."""
+    with get_conn() as conn:
+        conn.execute("DELETE FROM income_events WHERE upload_id = ?", (upload_id,))
+        conn.execute("DELETE FROM raw_transactions WHERE upload_id = ?", (upload_id,))
+        conn.execute("DELETE FROM uploads WHERE id = ?", (upload_id,))
+
+
 def save_raw_transactions(upload_id: int, transactions: list[Transaction]) -> None:
     with get_conn() as conn:
         conn.executemany(

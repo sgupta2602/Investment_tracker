@@ -64,6 +64,8 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
     result = MatchResult()
 
     for txn in sorted(transactions, key=lambda t: t.date):
+        if not txn.is_option:
+            continue  # SCOPE (user decision, current pass): options only
         key = _lot_key(txn)
 
         if txn.action in OPENING_ACTIONS:
@@ -77,9 +79,8 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
             units, ticker = _units_and_ticker(txn)
             if units <= 0:
                 continue
-            close_price = 0.0 if txn.action == "Expired" else txn.price
             close_fee_per_unit = (txn.fees or 0.0) / units
-            effective_sell_price = close_price - close_fee_per_unit
+            effective_sell_price = txn.price - close_fee_per_unit
 
             remaining_to_close = units
             queue = lots[key]

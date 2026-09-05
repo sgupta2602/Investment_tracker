@@ -20,10 +20,12 @@ OPTION_SYMBOL_RE = re.compile(
     r"(?P<strike>[\d.]+)\s+(?P<right>[CP])$"
 )
 
-# Actions that represent an opening leg of a position.
-OPENING_ACTIONS = {"Buy", "Buy to Open"}
-# Actions that represent a closing leg of a position.
-CLOSING_ACTIONS = {"Sell", "Sell to Close", "Expired"}
+# SCOPE (user decision, current pass): options contracts only, opened and
+# closed cleanly within tracked history. "Buy"/"Sell" (plain share trades)
+# and "Expired" (contract lapsed instead of being sold) are deliberately
+# excluded for now -- easy to widen back later by adding to these sets.
+OPENING_ACTIONS = {"Buy to Open"}
+CLOSING_ACTIONS = {"Sell to Close"}
 # Actions that are pure cash/income events, not trades.
 INCOME_ACTIONS = {
     "Cash Dividend",

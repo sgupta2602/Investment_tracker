@@ -56,6 +56,7 @@
           <th scope="col" class="px-3 py-2 text-left">Account</th>
           <th scope="col" class="px-3 py-2 text-left">Uploaded</th>
           <th scope="col" class="px-3 py-2 text-left">Detail</th>
+          <th scope="col" class="px-3 py-2 text-left">Delete</th>
         </tr>
       </thead>
       <tbody>
@@ -67,6 +68,15 @@
           <td class="px-3 py-1">
             <a class="text-indigo-700 font-semibold underline focus:outline-none focus:ring-2 focus:ring-indigo-700 rounded"
                href="/dashboard/{{ u.id }}">View period</a>
+          </td>
+          <td class="px-3 py-1">
+            <form action="/delete_upload/{{ u.id }}" method="post"
+                  onsubmit="return confirm('Delete {{ u.filename }}? This removes its transactions and re-runs matching across the rest of your history. This cannot be undone.');">
+              <button type="submit"
+                      class="text-red-700 font-semibold underline focus:outline-none focus:ring-2 focus:ring-red-700 rounded">
+                Delete
+              </button>
+            </form>
           </td>
         </tr>
         {% endfor %}

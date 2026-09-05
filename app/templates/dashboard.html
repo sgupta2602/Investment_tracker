@@ -24,6 +24,12 @@
     <a href="/upload" class="text-sm font-semibold text-violet-700 underline focus:outline-none focus:ring-2 focus:ring-violet-700 rounded">
       Upload another statement
     </a>
+    <form action="/delete_upload/{{ current_upload_id }}" method="post"
+          onsubmit="return confirm('Delete this statement? This removes its transactions and re-runs matching across the rest of your history. This cannot be undone.');">
+      <button type="submit" class="text-sm font-semibold text-red-700 underline focus:outline-none focus:ring-2 focus:ring-red-700 rounded">
+        Delete this statement
+      </button>
+    </form>
   </div>
 </div>
 
