@@ -4,10 +4,10 @@
 
 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
   <div>
-    <label for="upload-select" class="text-sm font-medium mr-2 text-slate-700">Viewing period:</label>
+    <label for="upload-select" class="text-sm font-medium mr-2 text-slate-300">Viewing period:</label>
     <select
       id="upload-select"
-      class="border-2 border-indigo-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
       onchange="window.location = '/dashboard/' + this.value"
     >
       {% for u in uploads %}
@@ -18,39 +18,39 @@
     </select>
   </div>
   <div class="flex gap-3">
-    <a href="/overview" class="text-sm font-semibold text-violet-700 underline focus:outline-none focus:ring-2 focus:ring-violet-700 rounded">
+    <a href="/overview" class="text-sm font-semibold text-cyan-400 underline hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded">
       Back to Overview
     </a>
-    <a href="/upload" class="text-sm font-semibold text-violet-700 underline focus:outline-none focus:ring-2 focus:ring-violet-700 rounded">
+    <a href="/upload" class="text-sm font-semibold text-cyan-400 underline hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded">
       Upload another statement
     </a>
     <form action="/delete_upload/{{ current_upload_id }}" method="post"
           onsubmit="return confirm('Delete this statement? This removes its transactions and re-runs matching across the rest of your history. This cannot be undone.');">
-      <button type="submit" class="text-sm font-semibold text-red-700 underline focus:outline-none focus:ring-2 focus:ring-red-700 rounded">
+      <button type="submit" class="text-sm font-semibold text-rose-400 underline hover:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 rounded">
         Delete this statement
       </button>
     </form>
   </div>
 </div>
 
-<div role="tablist" aria-label="Report sections" class="flex flex-wrap gap-2 border-b-2 border-slate-200 mb-4">
+<div role="tablist" aria-label="Report sections" class="flex flex-wrap gap-2 border-b border-slate-800 mb-4">
   <button type="button" role="tab" id="tab-btn-log" aria-controls="tab-log" aria-selected="true"
-    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-violet-600 text-violet-700"
+    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-cyan-500 text-cyan-400"
     onclick="showTab('log')">Trade Log</button>
   <button type="button" role="tab" id="tab-btn-perf" aria-controls="tab-perf" aria-selected="false"
-    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-600"
+    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-400 hover:text-slate-200"
     onclick="showTab('perf')">Monthly Performance</button>
   <button type="button" role="tab" id="tab-btn-tax" aria-controls="tab-tax" aria-selected="false"
-    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-600"
+    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-400 hover:text-slate-200"
     onclick="showTab('tax')">Gains / Losses / Tax</button>
   <button type="button" role="tab" id="tab-btn-income" aria-controls="tab-income" aria-selected="false"
-    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-600"
+    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-400 hover:text-slate-200"
     onclick="showTab('income')">Income</button>
   <button type="button" role="tab" id="tab-btn-review" aria-controls="tab-review" aria-selected="false"
-    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-600"
+    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-400 hover:text-slate-200"
     onclick="showTab('review')">
     Needs Review
-    {% if unmatched_closes %}<span class="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-white text-xs w-5 h-5">{{ unmatched_closes|length }}</span>{% endif %}
+    {% if unmatched_closes %}<span class="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500 text-slate-950 text-xs w-5 h-5 font-bold">{{ unmatched_closes|length }}</span>{% endif %}
   </button>
 </div>
 
@@ -83,10 +83,10 @@
       const active = p === name;
       panel.hidden = !active;
       btn.setAttribute("aria-selected", active ? "true" : "false");
-      btn.classList.toggle("border-violet-600", active);
-      btn.classList.toggle("text-violet-700", active);
+      btn.classList.toggle("border-cyan-500", active);
+      btn.classList.toggle("text-cyan-400", active);
       btn.classList.toggle("border-transparent", !active);
-      btn.classList.toggle("text-slate-600", !active);
+      btn.classList.toggle("text-slate-400", !active);
     });
   }
 </script>

@@ -1,11 +1,11 @@
-<h2 class="text-lg font-bold mb-3 text-slate-800">Trade Log (full history, running totals)</h2>
+<h2 class="text-lg font-bold mb-3 text-slate-100">Trade Log (full history, running totals)</h2>
 {% if not all_trades %}
-<p class="text-slate-600 text-sm">No closed trades yet -- upload a statement to get started.</p>
+<p class="text-slate-400 text-sm">No closed trades yet -- upload a statement to get started.</p>
 {% else %}
-<div class="overflow-x-auto bg-white rounded-lg shadow">
+<div class="overflow-x-auto rounded-lg border border-slate-800">
   <table class="min-w-full text-xs">
     <caption class="sr-only">Closed trades with realized gain/loss, holding period, and cumulative totals</caption>
-    <thead class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white">
+    <thead class="bg-slate-800 text-slate-200">
       <tr>
         <th scope="col" class="px-2 py-2 text-left">Account</th>
         <th scope="col" class="px-2 py-2 text-left">Sell Date</th>
@@ -29,35 +29,35 @@
         <th scope="col" class="px-2 py-2 text-right">Est. Tax</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody class="bg-slate-900">
       {% for t in all_trades %}
-      <tr class="border-t border-slate-200 {% if t.upload_id == current_upload_id %}bg-violet-50{% endif %}">
-        <td class="px-2 py-1">{{ t.account }}</td>
-        <td class="px-2 py-1">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
-        <td class="px-2 py-1 font-medium">{{ t.ticker }}</td>
-        <td class="px-2 py-1 text-right">{{ "%.0f"|format(t.quantity) }}</td>
-        <td class="px-2 py-1">{{ t.equity_type }}</td>
-        <td class="px-2 py-1 text-right">{{ t.strike_price | usd if t.strike_price else "-" }}</td>
-        <td class="px-2 py-1 text-right">{{ t.sell_price | usd }}</td>
-        <td class="px-2 py-1 text-right">{{ t.cost_price | usd }}</td>
-        <td class="px-2 py-1 text-right">{{ t.break_even | usd }}</td>
-        <td class="px-2 py-1">{{ t.buy_date.strftime('%m/%d/%Y') }}</td>
-        <td class="px-2 py-1 text-right">{{ t.realized_value | usd }}</td>
-        <td class="px-2 py-1 text-right">{{ t.cost_basis | usd }}</td>
-        <td class="px-2 py-1 text-right">{{ "%.2f"|format(t.hold_period_months) }}</td>
-        <td class="px-2 py-1 text-right font-semibold {{ 'text-green-700' if t.gain_loss >= 0 else 'text-red-700' }}">{{ t.gain_loss | usd }}</td>
-        <td class="px-2 py-1 text-right">{{ t.pct_gain_loss | pct }}</td>
-        <td class="px-2 py-1 text-right">{{ t.gain_per_month | pct }}</td>
+      <tr class="border-t border-slate-800 hover:bg-slate-800/50 {% if t.upload_id == current_upload_id %}bg-cyan-950/40{% endif %}">
+        <td class="px-2 py-1 text-slate-300">{{ t.account }}</td>
+        <td class="px-2 py-1 text-slate-300">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-2 py-1 font-medium text-slate-100">{{ t.ticker }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ "%.0f"|format(t.quantity) }}</td>
+        <td class="px-2 py-1 text-slate-300">{{ t.equity_type }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.strike_price | usd if t.strike_price else "-" }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.sell_price | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_price | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.break_even | usd }}</td>
+        <td class="px-2 py-1 text-slate-300">{{ t.buy_date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.realized_value | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_basis | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ "%.2f"|format(t.hold_period_months) }}</td>
+        <td class="px-2 py-1 text-right font-semibold {{ 'text-emerald-400' if t.gain_loss >= 0 else 'text-rose-400' }}">{{ t.gain_loss | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.pct_gain_loss | pct }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.gain_per_month | pct }}</td>
         <td class="px-2 py-1">
-          <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ 'bg-sky-100 text-sky-800' if t.gain_type == 'Long' else 'bg-orange-100 text-orange-800' }}">{{ t.gain_type }}</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-bold border {{ 'bg-sky-500/15 text-sky-300 border-sky-500/30' if t.gain_type == 'Long' else 'bg-amber-500/15 text-amber-300 border-amber-500/30' }}">{{ t.gain_type }}</span>
         </td>
-        <td class="px-2 py-1 text-right">{{ t.cumulative_gain | usd }}</td>
-        <td class="px-2 py-1 text-right">{{ t.cumulative_gain_pct | pct }}</td>
-        <td class="px-2 py-1 text-right">{{ t.estimated_tax | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.cumulative_gain | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.cumulative_gain_pct | pct }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.estimated_tax | usd }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
-<p class="text-xs text-slate-500 mt-2">Rows highlighted in violet belong to the period currently selected above.</p>
+<p class="text-xs text-slate-500 mt-2">Rows highlighted in teal belong to the period currently selected above.</p>
 {% endif %}

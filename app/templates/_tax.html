@@ -1,11 +1,11 @@
-<h2 class="text-lg font-bold mb-3 text-slate-800">Gains / Losses / Estimated Tax by Term</h2>
+<h2 class="text-lg font-bold mb-3 text-slate-100">Gains / Losses / Estimated Tax by Term</h2>
 {% if not month_trades %}
-<p class="text-slate-600 text-sm">No closed trades in this upload.</p>
+<p class="text-slate-400 text-sm">No closed trades in this upload.</p>
 {% else %}
-<div class="overflow-x-auto bg-white rounded-lg shadow">
+<div class="overflow-x-auto rounded-lg border border-slate-800">
   <table class="min-w-full text-sm">
     <caption class="sr-only">Short-term and long-term gains, losses, and estimated tax</caption>
-    <thead class="bg-gradient-to-r from-indigo-600 to-violet-600 text-white">
+    <thead class="bg-slate-800 text-slate-200">
       <tr>
         <th scope="col" class="px-3 py-2 text-left">Term</th>
         <th scope="col" class="px-3 py-2 text-right">Gains</th>
@@ -15,22 +15,22 @@
         <th scope="col" class="px-3 py-2 text-right">Estimated Tax</th>
       </tr>
     </thead>
-    <tbody>
-      <tr class="border-t border-slate-200 bg-orange-50">
-        <th scope="row" class="px-3 py-2 text-left font-bold text-orange-800">Short-term (&le; 1 yr)</th>
-        <td class="px-3 py-2 text-right text-green-700">{{ term_breakdown.short.gains | usd }}</td>
-        <td class="px-3 py-2 text-right text-red-700">{{ term_breakdown.short.losses | usd }}</td>
-        <td class="px-3 py-2 text-right font-semibold">{{ (term_breakdown.short.gains + term_breakdown.short.losses) | usd }}</td>
-        <td class="px-3 py-2 text-right">{{ term_breakdown.short.rate | pct }}</td>
-        <td class="px-3 py-2 text-right font-semibold">{{ term_breakdown.short.tax | usd }}</td>
+    <tbody class="bg-slate-900">
+      <tr class="border-t border-slate-800">
+        <th scope="row" class="px-3 py-2 text-left font-bold text-amber-300">Short-term (&le; 1 yr)</th>
+        <td class="px-3 py-2 text-right text-emerald-400">{{ term_breakdown.short.gains | usd }}</td>
+        <td class="px-3 py-2 text-right text-rose-400">{{ term_breakdown.short.losses | usd }}</td>
+        <td class="px-3 py-2 text-right font-semibold text-slate-200">{{ (term_breakdown.short.gains + term_breakdown.short.losses) | usd }}</td>
+        <td class="px-3 py-2 text-right text-slate-300">{{ term_breakdown.short.rate | pct }}</td>
+        <td class="px-3 py-2 text-right font-semibold text-slate-100">{{ term_breakdown.short.tax | usd }}</td>
       </tr>
-      <tr class="border-t border-slate-200 bg-sky-50">
-        <th scope="row" class="px-3 py-2 text-left font-bold text-sky-800">Long-term (&gt; 1 yr)</th>
-        <td class="px-3 py-2 text-right text-green-700">{{ term_breakdown.long.gains | usd }}</td>
-        <td class="px-3 py-2 text-right text-red-700">{{ term_breakdown.long.losses | usd }}</td>
-        <td class="px-3 py-2 text-right font-semibold">{{ (term_breakdown.long.gains + term_breakdown.long.losses) | usd }}</td>
-        <td class="px-3 py-2 text-right">{{ term_breakdown.long.rate | pct }}</td>
-        <td class="px-3 py-2 text-right font-semibold">{{ term_breakdown.long.tax | usd }}</td>
+      <tr class="border-t border-slate-800">
+        <th scope="row" class="px-3 py-2 text-left font-bold text-sky-300">Long-term (&gt; 1 yr)</th>
+        <td class="px-3 py-2 text-right text-emerald-400">{{ term_breakdown.long.gains | usd }}</td>
+        <td class="px-3 py-2 text-right text-rose-400">{{ term_breakdown.long.losses | usd }}</td>
+        <td class="px-3 py-2 text-right font-semibold text-slate-200">{{ (term_breakdown.long.gains + term_breakdown.long.losses) | usd }}</td>
+        <td class="px-3 py-2 text-right text-slate-300">{{ term_breakdown.long.rate | pct }}</td>
+        <td class="px-3 py-2 text-right font-semibold text-slate-100">{{ term_breakdown.long.tax | usd }}</td>
       </tr>
     </tbody>
   </table>

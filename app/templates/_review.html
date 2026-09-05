@@ -1,16 +1,16 @@
-<h2 class="text-lg font-semibold mb-3">Needs Review</h2>
+<h2 class="text-lg font-semibold mb-3 text-slate-100">Needs Review</h2>
 <p class="text-xs text-slate-500 mb-4">
   These reflect gaps across your uploaded statements as a whole -- not just the period selected above.
 </p>
 
-<h3 class="text-sm font-semibold mb-2">Closed positions missing an opening trade</h3>
+<h3 class="text-sm font-semibold mb-2 text-slate-200">Closed positions missing an opening trade</h3>
 {% if not unmatched_closes %}
-<p class="text-slate-600 text-sm mb-4">None -- every closed position matched to an opening trade in your uploads.</p>
+<p class="text-slate-400 text-sm mb-4">None -- every closed position matched to an opening trade in your uploads.</p>
 {% else %}
-<div class="overflow-x-auto bg-white rounded-lg shadow mb-6">
+<div class="overflow-x-auto rounded-lg border border-slate-800 mb-6">
   <table class="min-w-full text-sm">
     <caption class="sr-only">Positions that closed without a matching opening transaction in the uploaded data</caption>
-    <thead class="bg-amber-50 text-amber-900">
+    <thead class="bg-amber-500/10 text-amber-300">
       <tr>
         <th scope="col" class="px-3 py-2 text-left">Close Date</th>
         <th scope="col" class="px-3 py-2 text-left">Symbol</th>
@@ -18,13 +18,13 @@
         <th scope="col" class="px-3 py-2 text-left">Why</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody class="bg-slate-900">
       {% for u in unmatched_closes %}
-      <tr class="border-t border-slate-200">
-        <td class="px-3 py-1">{{ u.date.strftime('%m/%d/%Y') }}</td>
-        <td class="px-3 py-1 font-medium">{{ u.symbol }}</td>
-        <td class="px-3 py-1 text-right">{{ "%.0f"|format(u.unmatched_units) }}</td>
-        <td class="px-3 py-1 text-slate-600">{{ u.reason }}</td>
+      <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+        <td class="px-3 py-1 text-slate-300">{{ u.date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-3 py-1 font-medium text-slate-100">{{ u.symbol }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ "%.0f"|format(u.unmatched_units) }}</td>
+        <td class="px-3 py-1 text-slate-400">{{ u.reason }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -36,14 +36,14 @@
 </p>
 {% endif %}
 
-<h3 class="text-sm font-semibold mb-2">Still-open positions (no closing trade yet)</h3>
+<h3 class="text-sm font-semibold mb-2 text-slate-200">Still-open positions (no closing trade yet)</h3>
 {% if not open_positions %}
-<p class="text-slate-600 text-sm">None -- everything you've bought or opened has been closed out.</p>
+<p class="text-slate-400 text-sm">None -- everything you've bought or opened has been closed out.</p>
 {% else %}
-<div class="overflow-x-auto bg-white rounded-lg shadow">
+<div class="overflow-x-auto rounded-lg border border-slate-800">
   <table class="min-w-full text-sm">
     <caption class="sr-only">Positions opened but not yet closed</caption>
-    <thead class="bg-slate-100 text-slate-700">
+    <thead class="bg-slate-800 text-slate-200">
       <tr>
         <th scope="col" class="px-3 py-2 text-left">Symbol</th>
         <th scope="col" class="px-3 py-2 text-left">Open Date</th>
@@ -51,13 +51,13 @@
         <th scope="col" class="px-3 py-2 text-right">Open Price</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody class="bg-slate-900">
       {% for p in open_positions %}
-      <tr class="border-t border-slate-200">
-        <td class="px-3 py-1 font-medium">{{ p.symbol }}</td>
-        <td class="px-3 py-1">{{ p.open_date.strftime('%m/%d/%Y') }}</td>
-        <td class="px-3 py-1 text-right">{{ "%.0f"|format(p.remaining_units) }}</td>
-        <td class="px-3 py-1 text-right">{{ p.unit_price | usd }}</td>
+      <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+        <td class="px-3 py-1 font-medium text-slate-100">{{ p.symbol }}</td>
+        <td class="px-3 py-1 text-slate-300">{{ p.open_date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ "%.0f"|format(p.remaining_units) }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ p.unit_price | usd }}</td>
       </tr>
       {% endfor %}
     </tbody>

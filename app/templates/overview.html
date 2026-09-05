@@ -2,55 +2,55 @@
 {% block title %}Overview - Investment Tracker{% endblock %}
 {% block content %}
 
-<h2 class="text-xl font-bold mb-4 text-slate-800">Performance Overview <span class="text-sm font-normal text-slate-500">(all {{ trade_count }} closed trades, all uploads)</span></h2>
+<h2 class="text-xl font-bold mb-4 text-slate-100">Performance Overview <span class="text-sm font-normal text-slate-500">(all {{ trade_count }} closed trades, all uploads)</span></h2>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-  <div class="rounded-xl shadow-lg p-5 text-white bg-gradient-to-br from-sky-500 to-blue-600">
-    <p class="text-xs uppercase tracking-wide text-sky-100">Realized Investment</p>
-    <p class="text-2xl font-extrabold mt-1">{{ performance.realized_investment | usd }}</p>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <p class="text-xs uppercase tracking-wide text-slate-500">Realized Investment</p>
+    <p class="text-2xl font-extrabold mt-1 text-slate-100">{{ performance.realized_investment | usd }}</p>
   </div>
-  <div class="rounded-xl shadow-lg p-5 text-white bg-gradient-to-br from-violet-500 to-purple-600">
-    <p class="text-xs uppercase tracking-wide text-violet-100">Cost Basis</p>
-    <p class="text-2xl font-extrabold mt-1">{{ performance.cost_basis | usd }}</p>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <p class="text-xs uppercase tracking-wide text-slate-500">Cost Basis</p>
+    <p class="text-2xl font-extrabold mt-1 text-slate-100">{{ performance.cost_basis | usd }}</p>
   </div>
-  <div class="rounded-xl shadow-lg p-5 text-white {{ 'bg-gradient-to-br from-emerald-500 to-green-600' if performance.gain >= 0 else 'bg-gradient-to-br from-rose-500 to-red-600' }}">
-    <p class="text-xs uppercase tracking-wide text-white/80">Total Gain</p>
-    <p class="text-2xl font-extrabold mt-1">{{ performance.gain | usd }}</p>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <p class="text-xs uppercase tracking-wide text-slate-500">Total Gain</p>
+    <p class="text-2xl font-extrabold mt-1 {{ 'text-emerald-400' if performance.gain >= 0 else 'text-rose-400' }}">{{ performance.gain | usd }}</p>
   </div>
-  <div class="rounded-xl shadow-lg p-5 text-white bg-gradient-to-br from-amber-400 to-orange-500">
-    <p class="text-xs uppercase tracking-wide text-amber-50">Yield</p>
-    <p class="text-2xl font-extrabold mt-1">{{ performance.yield_pct | pct }}</p>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <p class="text-xs uppercase tracking-wide text-slate-500">Yield</p>
+    <p class="text-2xl font-extrabold mt-1 {{ 'text-emerald-400' if performance.yield_pct >= 0 else 'text-rose-400' }}">{{ performance.yield_pct | pct }}</p>
   </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-  <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-5">
-    <h3 class="font-semibold text-slate-700 mb-3">Cumulative Gain Over Time</h3>
+  <div class="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <h3 class="font-semibold text-slate-200 mb-3">Cumulative Gain Over Time</h3>
     <div class="h-72">
       <canvas id="cumulativeChart" role="img" aria-label="Line chart of cumulative gain over time"></canvas>
     </div>
   </div>
-  <div class="bg-white rounded-xl shadow-lg p-5">
-    <h3 class="font-semibold text-slate-700 mb-3">Gains by Term</h3>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <h3 class="font-semibold text-slate-200 mb-3">Gains by Term</h3>
     <div class="h-72">
       <canvas id="termChart" role="img" aria-label="Doughnut chart of short-term versus long-term gains"></canvas>
     </div>
   </div>
 </div>
 
-<div class="bg-white rounded-xl shadow-lg p-5 mb-6">
-  <h3 class="font-semibold text-slate-700 mb-3">Gain by Statement Period</h3>
+<div class="rounded-xl border border-slate-800 bg-slate-900 p-5 mb-6">
+  <h3 class="font-semibold text-slate-200 mb-3">Gain by Statement Period</h3>
   <div class="h-72">
     <canvas id="periodChart" role="img" aria-label="Bar chart of gain per uploaded statement"></canvas>
   </div>
 </div>
 
-<div class="bg-white rounded-xl shadow-lg p-5">
-  <h3 class="font-semibold text-slate-700 mb-3">Uploaded Statements</h3>
+<div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+  <h3 class="font-semibold text-slate-200 mb-3">Uploaded Statements</h3>
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm">
       <caption class="sr-only">List of uploaded statements with a link to each period's detail dashboard</caption>
-      <thead class="bg-indigo-50 text-indigo-900">
+      <thead class="bg-slate-800 text-slate-300">
         <tr>
           <th scope="col" class="px-3 py-2 text-left">File</th>
           <th scope="col" class="px-3 py-2 text-left">Account</th>
@@ -61,19 +61,19 @@
       </thead>
       <tbody>
         {% for u in uploads %}
-        <tr class="border-t border-slate-200">
-          <td class="px-3 py-1">{{ u.filename }}</td>
-          <td class="px-3 py-1">{{ u.account or "-" }}</td>
-          <td class="px-3 py-1">{{ u.uploaded_at }}</td>
+        <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+          <td class="px-3 py-1 text-slate-300">{{ u.filename }}</td>
+          <td class="px-3 py-1 text-slate-300">{{ u.account or "-" }}</td>
+          <td class="px-3 py-1 text-slate-300">{{ u.uploaded_at }}</td>
           <td class="px-3 py-1">
-            <a class="text-indigo-700 font-semibold underline focus:outline-none focus:ring-2 focus:ring-indigo-700 rounded"
+            <a class="text-cyan-400 font-semibold underline hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded"
                href="/dashboard/{{ u.id }}">View period</a>
           </td>
           <td class="px-3 py-1">
             <form action="/delete_upload/{{ u.id }}" method="post"
                   onsubmit="return confirm('Delete {{ u.filename }}? This removes its transactions and re-runs matching across the rest of your history. This cannot be undone.');">
               <button type="submit"
-                      class="text-red-700 font-semibold underline focus:outline-none focus:ring-2 focus:ring-red-700 rounded">
+                      class="text-rose-400 font-semibold underline hover:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 rounded">
                 Delete
               </button>
             </form>
@@ -90,6 +90,14 @@
   const periodSeries = {{ period_series | tojson | safe }};
   const termBreakdown = {{ term_breakdown | tojson | safe }};
 
+  const GRID_COLOR = "#1e293b";   // slate-800
+  const TICK_COLOR = "#94a3b8";   // slate-400
+  const darkScales = {
+    x: { ticks: { color: TICK_COLOR }, grid: { color: GRID_COLOR } },
+    y: { ticks: { color: TICK_COLOR }, grid: { color: GRID_COLOR } },
+  };
+  const darkLegend = { labels: { color: TICK_COLOR } };
+
   new Chart(document.getElementById("cumulativeChart"), {
     type: "line",
     data: {
@@ -97,14 +105,19 @@
       datasets: [{
         label: "Cumulative Gain ($)",
         data: cumulativePoints.map((p) => p.value),
-        borderColor: "#7c3aed",
-        backgroundColor: "rgba(124, 58, 237, 0.15)",
+        borderColor: "#22d3ee",
+        backgroundColor: "rgba(34, 211, 238, 0.12)",
         fill: true,
         tension: 0.25,
         pointRadius: 2,
       }],
     },
-    options: { responsive: true, maintainAspectRatio: false },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: darkScales,
+      plugins: { legend: darkLegend },
+    },
   });
 
   new Chart(document.getElementById("termChart"), {
@@ -113,10 +126,16 @@
       labels: ["Short-term Gains", "Long-term Gains"],
       datasets: [{
         data: [Math.max(termBreakdown.short.gains, 0), Math.max(termBreakdown.long.gains, 0)],
-        backgroundColor: ["#f97316", "#0ea5e9"],
+        backgroundColor: ["#f59e0b", "#38bdf8"],
+        borderColor: "#0f172a",
+        borderWidth: 2,
       }],
     },
-    options: { responsive: true, maintainAspectRatio: false },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: darkLegend },
+    },
   });
 
   new Chart(document.getElementById("periodChart"), {
@@ -126,11 +145,16 @@
       datasets: [{
         label: "Gain per Statement ($)",
         data: periodSeries.map((p) => p.gain),
-        backgroundColor: periodSeries.map((p) => (p.gain >= 0 ? "#10b981" : "#f43f5e")),
+        backgroundColor: periodSeries.map((p) => (p.gain >= 0 ? "#34d399" : "#fb7185")),
         borderRadius: 6,
       }],
     },
-    options: { responsive: true, maintainAspectRatio: false },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: darkScales,
+      plugins: { legend: darkLegend },
+    },
   });
 </script>
 {% endblock %}
