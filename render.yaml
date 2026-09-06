@@ -6,8 +6,13 @@ services:
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
-      # Set this in the Render dashboard when you deploy -- "sync: false"
-      # means Render prompts you to type it in rather than storing it in
-      # this file (so the password never ends up in git).
-      - key: APP_PASSWORD
-        sync: false
+      # Login credentials default to real values baked into app/main.py, so
+      # nothing needs to be set here for the app to work out of the box.
+      # Override any of these in the Render dashboard if you want to change
+      # them without a code change/redeploy:
+      #   LOGIN_EMAIL, LOGIN_PASSWORD, SESSION_SECRET_KEY
+      # SESSION_SECRET_KEY specifically is worth setting -- without it, a
+      # fresh random one is generated on every restart, which logs everyone
+      # out whenever Render's free tier spins the instance down and back up.
+      - key: SESSION_SECRET_KEY
+        generateValue: true

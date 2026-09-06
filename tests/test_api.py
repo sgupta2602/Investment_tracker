@@ -11,13 +11,62 @@ FIXTURE = Path(__file__).parent / "fixtures" / "sample_transactions.csv"
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
+def anon_client(tmp_path, monkeypatch):
+    """Same setup as `client`, but WITHOUT logging in -- for testing the
+    login gate itself."""
     monkeypatch.setattr("app.db.DB_PATH", tmp_path / "test.db")
     import app.main as main_module
 
     importlib.reload(main_module)
     with TestClient(main_module.app) as c:
         yield c
+
+
+@pytest.fixture
+def client(anon_client):
+    import app.main as main_module
+
+    anon_client.post(
+        "/login",
+        data={"email": main_module.LOGIN_EMAIL, "password": main_module.LOGIN_PASSWORD},
+    )
+    return anon_client
+
+
+def test_unauthenticated_visitor_redirected_to_login(anon_client):
+    resp = anon_client.get("/", follow_redirects=False)
+    assert resp.status_code in (302, 303, 307)
+    assert resp.headers["location"] == "/login"
+
+
+def test_login_with_correct_credentials_grants_access(anon_client):
+    import app.main as main_module
+
+    resp = anon_client.post(
+        "/login",
+        data={"email": main_module.LOGIN_EMAIL, "password": main_module.LOGIN_PASSWORD},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/"
+    home = anon_client.get("/")
+    assert home.status_code == 200
+
+
+def test_login_with_wrong_password_rejected(anon_client):
+    import app.main as main_module
+
+    resp = anon_client.post(
+        "/login", data={"email": main_module.LOGIN_EMAIL, "password": "wrong-password"}
+    )
+    assert resp.status_code == 401
+    assert "Incorrect email or password" in resp.text
+
+
+def test_logout_revokes_access(client):
+    client.post("/logout")
+    resp = client.get("/", follow_redirects=False)
+    assert resp.headers["location"] == "/login"
 
 
 def test_upload_then_dashboard_shows_closed_trades(client):

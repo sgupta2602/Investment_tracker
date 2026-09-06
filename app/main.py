@@ -11,10 +11,11 @@ import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 from app import repository as repo
 from app.db import init_db
@@ -26,26 +27,28 @@ from app.summary import gains_losses_by_term, monthly_performance, performance_b
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Password protection is OPT-IN via an environment variable, not baked into
-# the code. Local/dev use (this laptop, localhost) stays completely
-# frictionless. Only a deployment that sets APP_PASSWORD (e.g. a hosted
-# copy shared outside this machine) requires it -- see README for setup.
-APP_PASSWORD = os.environ.get("APP_PASSWORD")
-_security = HTTPBasic(auto_error=False)
+# All three are overridable via env vars (e.g. on Render) without a code
+# change, but default to real values so this works locally with zero setup.
+LOGIN_EMAIL = os.environ.get("LOGIN_EMAIL", "drskumar1164@gamil.com")
+LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "Sandy@1164")
+# Falls back to a freshly-generated secret if unset -- fine for local use,
+# but means sessions won't survive a server restart. Set SESSION_SECRET_KEY
+# on Render so logins persist across deploys/restarts there.
+SESSION_SECRET = os.environ.get("SESSION_SECRET_KEY", secrets.token_hex(32))
+
+_PUBLIC_PATHS = {"/login"}
 
 
-def require_auth(credentials: HTTPBasicCredentials | None = Depends(_security)) -> None:
-    if not APP_PASSWORD:
-        return  # no password configured -- auth disabled (e.g. local dev)
-    password_ok = credentials is not None and secrets.compare_digest(
-        credentials.password, APP_PASSWORD
-    )
-    if not password_ok:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-            headers={"WWW-Authenticate": "Basic"},
-        )
+class RequireLoginMiddleware(BaseHTTPMiddleware):
+    """Gates every route except /login behind a session flag set at login
+    time. Must be added BEFORE SessionMiddleware (see bottom of this file --
+    Starlette runs middleware in reverse-add order, so SessionMiddleware
+    needs to be outermost to populate request.session first)."""
+
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path not in _PUBLIC_PATHS and not request.session.get("logged_in"):
+            return RedirectResponse(url="/login")
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -54,11 +57,36 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Investment Tracker", lifespan=lifespan, dependencies=[Depends(require_auth)])
+app = FastAPI(title="Investment Tracker", lifespan=lifespan)
+app.add_middleware(RequireLoginMiddleware)
+app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.filters["usd"] = lambda v: ("-$" if v < 0 else "$") + f"{abs(v):,.2f}"
 templates.env.filters["pct"] = lambda v: f"{v * 100:,.2f}%"
 templates.env.filters["tojson"] = json.dumps
+
+
+@app.get("/login")
+def login_form(request: Request):
+    return templates.TemplateResponse(request, "login.html", {"error": None})
+
+
+@app.post("/login")
+def login_submit(request: Request, email: str = Form(...), password: str = Form(...)):
+    email_ok = secrets.compare_digest(email.strip().lower(), LOGIN_EMAIL.lower())
+    password_ok = secrets.compare_digest(password, LOGIN_PASSWORD)
+    if not (email_ok and password_ok):
+        return templates.TemplateResponse(
+            request, "login.html", {"error": "Incorrect email or password."}, status_code=401
+        )
+    request.session["logged_in"] = True
+    return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=303)
 
 
 @app.get("/")
