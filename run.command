@@ -17,8 +17,16 @@ if [ ! -d ".venv" ] || ! .venv/bin/python3 --version >/dev/null 2>&1; then
   rm -rf .venv
   uv venv
   source .venv/bin/activate
-  uv pip install --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/external-pypi/simple \
-    --allow-insecure-host pypi.ci.artifacts.walmart.com -r requirements.txt
+  echo "Installing dependencies..."
+  if ! uv pip install --index-url https://pypi.ci.artifacts.walmart.com/artifactory/api/pypi/external-pypi/simple \
+    --allow-insecure-host pypi.ci.artifacts.walmart.com -r requirements.txt 2>/dev/null; then
+    # Walmart's internal package mirror is only reachable from Walmart's own
+    # network/VPN. If this is running on someone else's machine (e.g. a
+    # friend or family member you shared this project with), fall back to
+    # public PyPI instead of just failing.
+    echo "Internal package mirror not reachable -- using public PyPI instead."
+    uv pip install -r requirements.txt
+  fi
 else
   source .venv/bin/activate
 fi
