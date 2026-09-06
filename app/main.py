@@ -4,13 +4,16 @@ manual Excel chore."""
 from __future__ import annotations
 
 import json
+import os
+import secrets
 import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 
 from app import repository as repo
@@ -23,6 +26,27 @@ from app.summary import gains_losses_by_term, monthly_performance, performance_b
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# Password protection is OPT-IN via an environment variable, not baked into
+# the code. Local/dev use (this laptop, localhost) stays completely
+# frictionless. Only a deployment that sets APP_PASSWORD (e.g. a hosted
+# copy shared outside this machine) requires it -- see README for setup.
+APP_PASSWORD = os.environ.get("APP_PASSWORD")
+_security = HTTPBasic(auto_error=False)
+
+
+def require_auth(credentials: HTTPBasicCredentials | None = Depends(_security)) -> None:
+    if not APP_PASSWORD:
+        return  # no password configured -- auth disabled (e.g. local dev)
+    password_ok = credentials is not None and secrets.compare_digest(
+        credentials.password, APP_PASSWORD
+    )
+    if not password_ok:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -30,7 +54,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Investment Tracker", lifespan=lifespan)
+app = FastAPI(title="Investment Tracker", lifespan=lifespan, dependencies=[Depends(require_auth)])
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.filters["usd"] = lambda v: ("-$" if v < 0 else "$") + f"{abs(v):,.2f}"
 templates.env.filters["pct"] = lambda v: f"{v * 100:,.2f}%"

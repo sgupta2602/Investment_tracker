@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: investment-tracker
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      # Set this in the Render dashboard when you deploy -- "sync: false"
+      # means Render prompts you to type it in rather than storing it in
+      # this file (so the password never ends up in git).
+      - key: APP_PASSWORD
+        sync: false
