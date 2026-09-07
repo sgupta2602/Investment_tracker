@@ -67,11 +67,14 @@ class Transaction:
 
 
 def _parse_money(raw: str) -> float:
+    """Handles both negative notations brokers use: '-$292.66' (dash) and
+    '($292.66)' (accounting/parentheses style) -- some statement exports
+    use one, some use the other, sometimes even within the same file."""
     raw = (raw or "").strip()
     if not raw:
         return 0.0
-    negative = raw.startswith("-")
-    cleaned = raw.replace("$", "").replace(",", "").lstrip("-")
+    negative = raw.startswith("-") or (raw.startswith("(") and raw.endswith(")"))
+    cleaned = raw.replace("$", "").replace(",", "").replace("(", "").replace(")", "").lstrip("-")
     value = float(cleaned) if cleaned else 0.0
     return -value if negative else value
 

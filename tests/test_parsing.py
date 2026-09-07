@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.parsing import (
+    _parse_money,
     extract_account_label,
     parse_option_symbol,
     parse_transactions_csv,
@@ -56,3 +57,28 @@ def test_extract_account_label_from_filename():
 
 def test_parse_option_symbol_rejects_non_option_strings():
     assert parse_option_symbol("OLDCO") == {}
+
+
+def test_parse_money_handles_dash_negative():
+    assert _parse_money("-$292.66") == -292.66
+
+
+def test_parse_money_handles_accounting_parens_negative():
+    """Regression test: real broker export used '($292.66)' (accounting/
+    parentheses notation) instead of '-$292.66' -- this crashed the parser
+    with a ValueError before the fix, since '(292.66)' isn't a valid float
+    once $ and , are stripped but the parens are left in place."""
+    assert _parse_money("($292.66)") == -292.66
+
+
+def test_parse_money_handles_accounting_parens_with_thousands_separator():
+    assert _parse_money("($1,455.00)") == -1455.00
+
+
+def test_parse_money_handles_positive_with_thousands_separator():
+    assert _parse_money("$2,096.63") == 2096.63
+
+
+def test_parse_money_handles_blank():
+    assert _parse_money("") == 0.0
+    assert _parse_money(None) == 0.0
