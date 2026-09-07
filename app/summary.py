@@ -65,7 +65,13 @@ def performance_by_recommender(trades: list[dict]) -> list[dict]:
     their picks actually contribute to my P&L' -- the whole point of that
     column existing. Trades nobody's tagged yet land under 'Unspecified'
     (not dropped), so the group totals always reconcile against the
-    grand total shown elsewhere on the page."""
+    grand total shown elsewhere on the page.
+
+    Each row carries its full contributing trade list (sorted biggest
+    gain first), not just a ticker summary -- Overview renders this as a
+    click-to-expand drill-down rather than a flat table, so someone with
+    a name tagged on 40 trades doesn't get a wall of comma-separated
+    tickers shoved in their face by default."""
     by_name: dict[str, list[dict]] = {}
     for t in trades:
         name = (t.get("recommended_by") or "").strip() or "Unspecified"
@@ -74,6 +80,13 @@ def performance_by_recommender(trades: list[dict]) -> list[dict]:
     rows = []
     for name, group in by_name.items():
         perf = monthly_performance(group)
-        tickers = sorted({g["ticker"] for g in group})
-        rows.append({"name": name, "trade_count": len(group), "tickers": tickers, **perf})
+        ranked_trades = sorted(group, key=lambda g: g["gain_loss"], reverse=True)
+        rows.append(
+            {
+                "name": name,
+                "trade_count": len(group),
+                "trades": ranked_trades,
+                **perf,
+            }
+        )
     return sorted(rows, key=lambda r: r["gain"], reverse=True)

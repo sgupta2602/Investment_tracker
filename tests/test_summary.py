@@ -25,7 +25,7 @@ def test_groups_trades_by_recommended_by():
 
     assert by_name["Priya"]["trade_count"] == 2
     assert by_name["Priya"]["gain"] == 500.0
-    assert by_name["Priya"]["tickers"] == ["AAPL", "MSFT"]
+    assert [t["ticker"] for t in by_name["Priya"]["trades"]] == ["MSFT", "AAPL"]  # biggest gain first
 
     assert by_name["Amit"]["trade_count"] == 1
     assert by_name["Amit"]["gain"] == -100.0
@@ -60,3 +60,13 @@ def test_group_totals_reconcile_against_grand_total():
     ]
     rows = performance_by_recommender(trades)
     assert sum(r["gain"] for r in rows) == sum(t["gain_loss"] for t in trades)
+
+
+def test_trades_within_a_group_ranked_biggest_gain_first_for_drilldown():
+    trades = [
+        _trade(ticker="SMALL_WIN", recommended_by="Priya", gain_loss=50.0),
+        _trade(ticker="BIG_WIN", recommended_by="Priya", gain_loss=900.0),
+        _trade(ticker="A_LOSS", recommended_by="Priya", gain_loss=-40.0),
+    ]
+    [row] = performance_by_recommender(trades)
+    assert [t["ticker"] for t in row["trades"]] == ["BIG_WIN", "SMALL_WIN", "A_LOSS"]

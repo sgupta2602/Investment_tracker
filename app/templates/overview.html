@@ -49,29 +49,66 @@
   <h3 class="font-semibold text-slate-200 mb-1">Gain by Recommender</h3>
   <p class="text-xs text-slate-500 mb-3">
     Pulled from the Trade Log's "Recommended By" column -- fill that in per trade to see who's
-    actually contributing to your P&amp;L, and which of their picks made up that total.
+    actually contributing to your P&amp;L. Click a name to drill into the trades behind that total.
     Trades with nothing filled in are grouped under "Unspecified" so the totals still add up.
   </p>
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm">
-      <caption class="sr-only">Total gain and yield grouped by who recommended each trade</caption>
+      <caption class="sr-only">Total gain and yield grouped by who recommended each trade -- expandable to see the individual trades</caption>
       <thead class="bg-slate-800 text-slate-300">
         <tr>
           <th scope="col" class="px-3 py-2 text-left">Recommended By</th>
           <th scope="col" class="px-3 py-2 text-right">Trades</th>
-          <th scope="col" class="px-3 py-2 text-left">Tickers</th>
           <th scope="col" class="px-3 py-2 text-right">Total Gain</th>
           <th scope="col" class="px-3 py-2 text-right">Yield</th>
         </tr>
       </thead>
       <tbody>
         {% for r in recommender_breakdown %}
-        <tr class="border-t border-slate-800 hover:bg-slate-800/50">
-          <td class="px-3 py-1 font-medium {{ 'text-slate-500 italic' if r.name == 'Unspecified' else 'text-slate-100' }}">{{ r.name }}</td>
+        {% set row_id = "recommender-" ~ loop.index %}
+        <tr class="border-t border-slate-800 hover:bg-slate-800/50 cursor-pointer"
+            onclick="toggleRecommenderDrilldown('{{ row_id }}')"
+            tabindex="0"
+            role="button"
+            aria-expanded="false"
+            aria-controls="{{ row_id }}-detail"
+            onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleRecommenderDrilldown('{{ row_id }}'); }">
+          <td class="px-3 py-1 font-medium {{ 'text-slate-500 italic' if r.name == 'Unspecified' else 'text-slate-100' }}">
+            <span id="{{ row_id }}-chevron" class="inline-block w-3 text-cyan-400">&#9656;</span>
+            {{ r.name }}
+          </td>
           <td class="px-3 py-1 text-right text-slate-300">{{ r.trade_count }}</td>
-          <td class="px-3 py-1 text-slate-400">{{ r.tickers | join(', ') }}</td>
           <td class="px-3 py-1 text-right font-semibold {{ 'text-emerald-400' if r.gain >= 0 else 'text-rose-400' }}">{{ r.gain | usd }}</td>
           <td class="px-3 py-1 text-right {{ 'text-emerald-400' if r.yield_pct >= 0 else 'text-rose-400' }}">{{ r.yield_pct | pct }}</td>
+        </tr>
+        <tr id="{{ row_id }}-detail" hidden class="border-t border-slate-800">
+          <td colspan="4" class="p-0 bg-slate-950/60">
+            <table class="min-w-full text-xs">
+              <caption class="sr-only">Individual trades contributing to {{ r.name }}'s total</caption>
+              <thead class="text-slate-500">
+                <tr>
+                  <th scope="col" class="px-3 py-1.5 text-left">Ticker</th>
+                  <th scope="col" class="px-3 py-1.5 text-left">Sell Date</th>
+                  <th scope="col" class="px-3 py-1.5 text-right">Qty</th>
+                  <th scope="col" class="px-3 py-1.5 text-right">Gain/Loss</th>
+                  <th scope="col" class="px-3 py-1.5 text-left">Reason</th>
+                  <th scope="col" class="px-3 py-1.5 text-left">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for t in r.trades %}
+                <tr class="border-t border-slate-800/70">
+                  <td class="px-3 py-1 font-medium text-slate-200">{{ t.ticker }}</td>
+                  <td class="px-3 py-1 text-slate-400">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
+                  <td class="px-3 py-1 text-right text-slate-400">{{ "%.0f"|format(t.quantity) }}</td>
+                  <td class="px-3 py-1 text-right font-semibold {{ 'text-emerald-400' if t.gain_loss >= 0 else 'text-rose-400' }}">{{ t.gain_loss | usd }}</td>
+                  <td class="px-3 py-1 text-slate-400">{{ t.reason or "--" }}</td>
+                  <td class="px-3 py-1 text-slate-400">{{ t.notes or "--" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -120,6 +157,15 @@
 </div>
 
 <script>
+  function toggleRecommenderDrilldown(rowId) {
+    const detail = document.getElementById(rowId + "-detail");
+    const chevron = document.getElementById(rowId + "-chevron");
+    const toggleRow = chevron.closest("tr");
+    detail.hidden = !detail.hidden;
+    chevron.innerHTML = detail.hidden ? "&#9656;" : "&#9662;";
+    toggleRow.setAttribute("aria-expanded", String(!detail.hidden));
+  }
+
   const cumulativePoints = {{ cumulative_points | tojson | safe }};
   const periodSeries = {{ period_series | tojson | safe }};
   const termBreakdown = {{ term_breakdown | tojson | safe }};
