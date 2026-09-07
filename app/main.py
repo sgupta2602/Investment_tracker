@@ -174,6 +174,7 @@ def _rebuild_closed_trades() -> None:
             "sell_price": t.sell_price,
             "strike_price": t.strike_price,
             "expiration": t.expiration,
+            "is_adjusted": t.is_adjusted,
         }
         for t in raw_trades
     ]

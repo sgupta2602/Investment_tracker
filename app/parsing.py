@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 OPTION_SYMBOL_RE = re.compile(
-    r"^(?P<underlying>\S+)\s+(?P<expiration>\d{2}/\d{2}/\d{4})\s+"
+    r"^(?P<underlying>[A-Za-z.]+)(?P<adj_suffix>\d+)?\s+(?P<expiration>\d{2}/\d{2}/\d{4})\s+"
     r"(?P<strike>[\d.]+)\s+(?P<right>[CP])$"
 )
 
@@ -56,6 +56,7 @@ class Transaction:
     expiration: Optional[datetime] = None
     strike: Optional[float] = None
     right: Optional[str] = None
+    is_adjusted: bool = False
 
     # Populated once persisted / reloaded from the DB.
     upload_id: Optional[int] = None
@@ -94,6 +95,21 @@ def _parse_date(raw: str) -> datetime:
 
 
 def parse_option_symbol(symbol: str) -> dict:
+    """A trailing digit directly after the underlying (no space), e.g.
+    'AZN1 03/20/2026 90.00 C', marks an OCC-adjusted option contract --
+    created when a corporate action (merger, spinoff, special dividend,
+    ADR ratio change, etc.) forces the OCC to adjust existing contracts.
+    'AZN1' is the adjusted contract; 'AZN' is the real/unadjusted ticker.
+    We split the digit off so 'underlying' is always the clean ticker
+    (matches, search, and grouping all key on the real ticker either way)
+    and flag is_adjusted=True separately for display.
+
+    Note: this does NOT change the options multiplier. Verified against a
+    real adjusted AZN1 trade -- the standard 100x multiplier reproduced
+    the broker's reported dollar amount exactly, despite descriptive text
+    like 'REPS 50 AZN' in the statement (that's ADR-ratio trivia, not a
+    per-contract deliverable-share override).
+    """
     match = OPTION_SYMBOL_RE.match(symbol.strip())
     if not match:
         return {}
@@ -102,6 +118,7 @@ def parse_option_symbol(symbol: str) -> dict:
         "expiration": datetime.strptime(match.group("expiration"), "%m/%d/%Y"),
         "strike": float(match.group("strike")),
         "right": match.group("right"),
+        "is_adjusted": bool(match.group("adj_suffix")),
     }
 
 

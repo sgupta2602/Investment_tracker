@@ -27,6 +27,32 @@ def test_option_symbol_parsed_into_parts():
     assert abcd_open.strike == 50.00
     assert abcd_open.right == "C"
     assert abcd_open.expiration == datetime(2026, 2, 6)
+    assert not abcd_open.is_adjusted
+
+
+def test_adjusted_option_symbol_splits_ticker_from_adjustment_marker():
+    """A trailing digit right after the ticker with no space (e.g. 'AZN1')
+    marks an OCC-adjusted contract, created when a corporate action forces
+    the OCC to adjust existing option terms. 'AZN1' is the adjusted
+    contract; 'AZN' is the real/unadjusted ticker -- underlying should
+    always be the clean ticker so search/grouping/matching all key on the
+    real symbol, with is_adjusted flagging it separately for display.
+
+    Real example this was built from: AZN1 03/20/2026 90.00 C, from an
+    actual ASTRAZENECA PLC adjusted-contract statement row.
+    """
+    fields = parse_option_symbol("AZN1 03/20/2026 90.00 C")
+    assert fields["underlying"] == "AZN"
+    assert fields["is_adjusted"] is True
+    assert fields["strike"] == 90.00
+    assert fields["right"] == "C"
+    assert fields["expiration"] == datetime(2026, 3, 20)
+
+
+def test_unadjusted_option_symbol_is_not_flagged():
+    fields = parse_option_symbol("AZN 03/20/2026 90.00 C")
+    assert fields["underlying"] == "AZN"
+    assert fields["is_adjusted"] is False
 
 
 def test_plain_stock_symbol_is_not_an_option():

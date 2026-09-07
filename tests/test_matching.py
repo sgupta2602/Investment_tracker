@@ -98,3 +98,23 @@ def test_fifo_splits_close_across_multiple_lots():
     assert first.cost_price == 10.0
     assert second.quantity == 3000  # 30 contracts * 100
     assert second.cost_price == 12.0
+
+
+def test_adjusted_contract_closes_with_clean_ticker_and_is_flagged():
+    """An OCC-adjusted contract (AZN1) should still match FIFO normally
+    against its own opening lot, but the resulting ClosedTrade.ticker
+    should be the clean underlying (AZN, not AZN1), with is_adjusted=True
+    so the UI can flag it without polluting ticker search/grouping."""
+    from app.parsing import parse_option_symbol
+
+    open_fields = parse_option_symbol("AZN1 03/20/2026 90.00 C")
+    close_fields = parse_option_symbol("AZN1 03/20/2026 90.00 C")
+    txns = [
+        Transaction(datetime(2026, 1, 1), "Buy to Open", "AZN1 03/20/2026 90.00 C", "", 3, 5.0, 0.0, -1500.0, **open_fields),
+        Transaction(datetime(2026, 3, 20), "Sell to Close", "AZN1 03/20/2026 90.00 C", "", 3, 2.32, 2.00, 694.0, **close_fields),
+    ]
+    result = match_transactions(txns)
+    assert len(result.closed_trades) == 1
+    trade = result.closed_trades[0]
+    assert trade.ticker == "AZN"  # clean, unadjusted ticker -- not "AZN1"
+    assert trade.is_adjusted is True

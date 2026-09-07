@@ -121,8 +121,8 @@ def replace_closed_trades(enriched_trades: list[dict]) -> None:
                 expiration, sell_price, strike_price, cost_price, break_even, buy_date,
                 realized_value, cost_basis, cumulative_investment,
                 hold_period_months, gain_loss, pct_gain_loss, gain_per_month,
-                gain_type, cumulative_gain, cumulative_gain_pct, estimated_tax)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                gain_type, cumulative_gain, cumulative_gain_pct, estimated_tax, is_adjusted)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             [
                 (
                     t["upload_id"],
@@ -148,6 +148,7 @@ def replace_closed_trades(enriched_trades: list[dict]) -> None:
                     t["cumulative_gain"],
                     t["cumulative_gain_pct"],
                     t["estimated_tax"],
+                    int(t.get("is_adjusted", False)),
                 )
                 for t in enriched_trades
             ],

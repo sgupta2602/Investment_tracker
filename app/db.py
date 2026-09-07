@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS closed_trades (
     gain_type TEXT,
     cumulative_gain REAL,
     cumulative_gain_pct REAL,
-    estimated_tax REAL
+    estimated_tax REAL,
+    is_adjusted INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS income_events (
@@ -83,6 +84,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
     fresh install, or from a previous run of this same migration)."""
     try:
         conn.execute("ALTER TABLE closed_trades ADD COLUMN break_even REAL")
+    except sqlite3.OperationalError as e:
+        if "duplicate column" not in str(e):
+            raise
+    try:
+        conn.execute("ALTER TABLE closed_trades ADD COLUMN is_adjusted INTEGER NOT NULL DEFAULT 0")
     except sqlite3.OperationalError as e:
         if "duplicate column" not in str(e):
             raise
