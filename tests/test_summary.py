@@ -1,7 +1,12 @@
 """Tests for cross-trade roll-ups in summary.py."""
 from datetime import datetime
 
-from app.summary import performance_by_month, performance_by_recommender
+from app.summary import (
+    performance_by_month,
+    performance_by_recommender,
+    performance_by_ticker,
+    performance_stats,
+)
 
 
 def _trade(**overrides):
@@ -12,6 +17,7 @@ def _trade(**overrides):
         "gain_loss": 500.0,
         "recommended_by": "",
         "sell_date": datetime(2026, 1, 15),
+        "hold_period_months": 2.0,
     }
     base.update(overrides)
     return base
@@ -103,3 +109,41 @@ def test_months_sorted_chronologically_with_human_readable_labels():
     rows = performance_by_month(trades)
     assert [r["month"] for r in rows] == ["2025-12", "2026-01", "2026-03"]
     assert [r["label"] for r in rows] == ["Dec 2025", "Jan 2026", "Mar 2026"]
+
+
+def test_performance_stats_win_rate_and_averages():
+    trades = [
+        _trade(gain_loss=100.0, hold_period_months=1.0),
+        _trade(gain_loss=-50.0, hold_period_months=3.0),
+        _trade(gain_loss=200.0, hold_period_months=2.0),
+    ]
+    stats = performance_stats(trades)
+    assert stats["trade_count"] == 3
+    assert stats["win_count"] == 2
+    assert stats["loss_count"] == 1
+    assert stats["win_rate_pct"] == 2 / 3
+    assert stats["avg_gain_per_trade"] == (100.0 - 50.0 + 200.0) / 3
+    assert stats["avg_hold_months"] == (1.0 + 3.0 + 2.0) / 3
+
+
+def test_performance_stats_empty_trades_no_division_by_zero():
+    stats = performance_stats([])
+    assert stats["trade_count"] == 0
+    assert stats["win_rate_pct"] == 0.0
+    assert stats["avg_gain_per_trade"] == 0.0
+    assert stats["avg_hold_months"] == 0.0
+
+
+def test_performance_by_ticker_groups_and_sorts_by_gain():
+    trades = [
+        _trade(ticker="AAPL", gain_loss=100.0),
+        _trade(ticker="AAPL", gain_loss=-20.0),
+        _trade(ticker="MSFT", gain_loss=500.0),
+    ]
+    rows = performance_by_ticker(trades)
+    assert [r["ticker"] for r in rows] == ["MSFT", "AAPL"]
+
+    aapl = next(r for r in rows if r["ticker"] == "AAPL")
+    assert aapl["trade_count"] == 2
+    assert aapl["gain"] == 80.0
+    assert aapl["win_rate_pct"] == 0.5

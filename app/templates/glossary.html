@@ -168,6 +168,34 @@
           <td class="px-3 py-2 text-slate-400">Blended return across the whole period, not an average of per-trade %s.</td>
         </tr>
         <tr>
+          <td class="px-3 py-2 font-semibold text-slate-100">Win Rate</td>
+          <td class="px-3 py-2 text-cyan-300"><code>count(Gain &gt; 0) &divide; count(all trades)</code></td>
+          <td class="px-3 py-2 text-slate-400">
+            How often a trade was profitable, independent of how much it made or lost --
+            you can have a low win rate and still be net profitable if your wins run
+            bigger than your losses (or vice versa), so read this alongside Avg Gain / Trade, not alone.
+          </td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold text-slate-100">Avg Gain / Trade</td>
+          <td class="px-3 py-2 text-cyan-300"><code>sum(Gain) &divide; count(all trades)</code></td>
+          <td class="px-3 py-2 text-slate-400">Simple average across every closed trade in the period, wins and losses both included.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold text-slate-100">Avg Hold Period</td>
+          <td class="px-3 py-2 text-cyan-300"><code>average(Hold Period Months)</code></td>
+          <td class="px-3 py-2 text-slate-400">Same Hold Period Months figure from the Trade Log, just averaged across the period.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold text-slate-100">Month-by-Month / By Ticker (Monthly Performance tab)</td>
+          <td class="px-3 py-2 text-cyan-300"><code>same Gain/Yield formulas above, grouped by calendar month or by ticker</code></td>
+          <td class="px-3 py-2 text-slate-400">
+            Scoped to <strong class="text-slate-200">this uploaded statement only</strong> --
+            for the same breakdowns across your entire trade history, see Overview's
+            Month-over-Month chart and Gain by Recommender drill-down instead.
+          </td>
+        </tr>
+        <tr>
           <td class="px-3 py-2 font-semibold text-slate-100">Tax by Term (Short / Long)</td>
           <td class="px-3 py-2 text-cyan-300"><code>(gains + losses in that term) &times; rate</code></td>
           <td class="px-3 py-2 text-slate-400">

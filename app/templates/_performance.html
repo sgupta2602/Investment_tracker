@@ -2,7 +2,12 @@
 {% if not month_trades %}
 <p class="text-slate-400 text-sm">No closed trades in this upload.</p>
 {% else %}
-<dl class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+<p class="text-xs text-slate-500 mb-3">
+  Everything below reflects only the trades in <strong class="text-slate-300">this uploaded statement</strong> --
+  see Overview for totals across your whole history.
+</p>
+
+<dl class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
   <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
     <dt class="text-xs uppercase tracking-wide text-slate-500">Realized Investment</dt>
     <dd class="text-xl font-extrabold mt-1 text-slate-100">{{ performance.realized_investment | usd }}</dd>
@@ -20,4 +25,79 @@
     <dd class="text-xl font-extrabold mt-1 {{ 'text-emerald-400' if performance.yield_pct >= 0 else 'text-rose-400' }}">{{ performance.yield_pct | pct }}</dd>
   </div>
 </dl>
+
+<dl class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+    <dt class="text-xs uppercase tracking-wide text-slate-500">Trades</dt>
+    <dd class="text-xl font-extrabold mt-1 text-slate-100">{{ performance_stats.trade_count }}</dd>
+  </div>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+    <dt class="text-xs uppercase tracking-wide text-slate-500">Win Rate</dt>
+    <dd class="text-xl font-extrabold mt-1 text-slate-100">{{ performance_stats.win_rate_pct | pct }}
+      <span class="text-xs font-normal text-slate-500">({{ performance_stats.win_count }}W / {{ performance_stats.loss_count }}L)</span>
+    </dd>
+  </div>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+    <dt class="text-xs uppercase tracking-wide text-slate-500">Avg Gain / Trade</dt>
+    <dd class="text-xl font-extrabold mt-1 {{ 'text-emerald-400' if performance_stats.avg_gain_per_trade >= 0 else 'text-rose-400' }}">{{ performance_stats.avg_gain_per_trade | usd }}</dd>
+  </div>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
+    <dt class="text-xs uppercase tracking-wide text-slate-500">Avg Hold Period</dt>
+    <dd class="text-xl font-extrabold mt-1 text-slate-100">{{ "%.1f"|format(performance_stats.avg_hold_months) }} mo</dd>
+  </div>
+</dl>
+
+{% if upload_monthly_series | length > 1 %}
+<h3 class="text-sm font-semibold mb-2 text-slate-200">Month-by-Month (this statement)</h3>
+<div class="overflow-x-auto rounded-lg border border-slate-800 mb-6">
+  <table class="min-w-full text-sm">
+    <caption class="sr-only">Gain broken down by calendar month, within this upload only</caption>
+    <thead class="bg-slate-800 text-slate-200">
+      <tr>
+        <th scope="col" class="px-3 py-2 text-left">Month</th>
+        <th scope="col" class="px-3 py-2 text-right">Trades</th>
+        <th scope="col" class="px-3 py-2 text-right">Gain</th>
+        <th scope="col" class="px-3 py-2 text-right">Yield</th>
+      </tr>
+    </thead>
+    <tbody class="bg-slate-900">
+      {% for m in upload_monthly_series %}
+      <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+        <td class="px-3 py-1 text-slate-300">{{ m.label }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ m.trade_count }}</td>
+        <td class="px-3 py-1 text-right font-semibold {{ 'text-emerald-400' if m.gain >= 0 else 'text-rose-400' }}">{{ m.gain | usd }}</td>
+        <td class="px-3 py-1 text-right {{ 'text-emerald-400' if m.yield_pct >= 0 else 'text-rose-400' }}">{{ m.yield_pct | pct }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h3 class="text-sm font-semibold mb-2 text-slate-200">By Ticker (this statement)</h3>
+<div class="overflow-x-auto rounded-lg border border-slate-800 max-h-96 overflow-y-auto">
+  <table class="min-w-full text-sm">
+    <caption class="sr-only">Gain broken down by ticker, biggest contributor first, within this upload only</caption>
+    <thead class="bg-slate-800 text-slate-200 sticky top-0">
+      <tr>
+        <th scope="col" class="px-3 py-2 text-left">Ticker</th>
+        <th scope="col" class="px-3 py-2 text-right">Trades</th>
+        <th scope="col" class="px-3 py-2 text-right">Win Rate</th>
+        <th scope="col" class="px-3 py-2 text-right">Gain</th>
+        <th scope="col" class="px-3 py-2 text-right">Yield</th>
+      </tr>
+    </thead>
+    <tbody class="bg-slate-900">
+      {% for r in ticker_breakdown %}
+      <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+        <td class="px-3 py-1 font-medium text-slate-100">{{ r.ticker }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ r.trade_count }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ r.win_rate_pct | pct }}</td>
+        <td class="px-3 py-1 text-right font-semibold {{ 'text-emerald-400' if r.gain >= 0 else 'text-rose-400' }}">{{ r.gain | usd }}</td>
+        <td class="px-3 py-1 text-right {{ 'text-emerald-400' if r.yield_pct >= 0 else 'text-rose-400' }}">{{ r.yield_pct | pct }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endif %}

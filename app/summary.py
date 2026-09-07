@@ -67,6 +67,60 @@ def performance_by_month(trades: list[dict]) -> list[dict]:
     return series
 
 
+def performance_stats(trades: list[dict]) -> dict:
+    """A quick 'scorecard' for a period's closed trades -- separate from
+    monthly_performance()'s dollar totals, this is about the shape and
+    consistency of the trading itself: how many trades, how often you
+    won, the average outcome per trade, and how long positions were
+    typically held (hold_period_months already computed in calc.py as
+    (sell_date - buy_date).days / 30)."""
+    trade_count = len(trades)
+    if not trade_count:
+        return {
+            "trade_count": 0,
+            "win_count": 0,
+            "loss_count": 0,
+            "win_rate_pct": 0.0,
+            "avg_gain_per_trade": 0.0,
+            "avg_hold_months": 0.0,
+        }
+    win_count = sum(1 for t in trades if t["gain_loss"] > 0)
+    loss_count = sum(1 for t in trades if t["gain_loss"] < 0)
+    return {
+        "trade_count": trade_count,
+        "win_count": win_count,
+        "loss_count": loss_count,
+        "win_rate_pct": win_count / trade_count,
+        "avg_gain_per_trade": sum(t["gain_loss"] for t in trades) / trade_count,
+        "avg_hold_months": sum(t["hold_period_months"] for t in trades) / trade_count,
+    }
+
+
+def performance_by_ticker(trades: list[dict]) -> list[dict]:
+    """Per-ticker rollup for a period -- which symbols actually drove the
+    total gain/loss, sorted biggest contributor first. Distinct from the
+    Trade Log's row-by-row view (already covers every individual trade);
+    this answers 'which tickers were actually worth trading this period'
+    at a glance."""
+    by_ticker: dict[str, list[dict]] = {}
+    for t in trades:
+        by_ticker.setdefault(t["ticker"], []).append(t)
+
+    rows = []
+    for ticker, group in by_ticker.items():
+        perf = monthly_performance(group)
+        win_count = sum(1 for g in group if g["gain_loss"] > 0)
+        rows.append(
+            {
+                "ticker": ticker,
+                "trade_count": len(group),
+                "win_rate_pct": win_count / len(group),
+                **perf,
+            }
+        )
+    return sorted(rows, key=lambda r: r["gain"], reverse=True)
+
+
 def performance_by_recommender(trades: list[dict]) -> list[dict]:
     """Groups closed trades by the Trade Log's 'Recommended By' field so
     Overview can answer 'who told me about this stock, and how much did

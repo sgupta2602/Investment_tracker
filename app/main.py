@@ -28,6 +28,8 @@ from app.summary import (
     monthly_performance,
     performance_by_month,
     performance_by_recommender,
+    performance_by_ticker,
+    performance_stats,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -239,6 +241,9 @@ def dashboard(request: Request, upload_id: int):
             "all_trades": all_trades,
             "month_trades": month_trades,
             "performance": monthly_performance(month_trades),
+            "performance_stats": performance_stats(month_trades),
+            "ticker_breakdown": performance_by_ticker(month_trades),
+            "upload_monthly_series": performance_by_month(month_trades),
             "term_breakdown": gains_losses_by_term(month_trades),
             "income_events": income_events,
             "income_totals": income_totals(income_events),
