@@ -83,6 +83,22 @@ def test_upload_then_dashboard_shows_closed_trades(client):
     assert "Trade Log" in resp.text
 
 
+def test_trade_log_rows_carry_search_and_date_filter_attributes(client):
+    """The ticker search + date range filter are pure client-side JS over
+    these data attributes -- if they're missing/wrong, filtering silently
+    does nothing (or filters wrong rows) with no server-side error to catch
+    it, so this is worth asserting on directly."""
+    with open(FIXTURE, "rb") as f:
+        resp = client.post(
+            "/upload",
+            files={"file": ("sample_transactions.csv", f, "text/csv")},
+        )
+    assert 'data-ticker="abcd"' in resp.text.lower()
+    assert 'id="ticker-search"' in resp.text
+    assert 'id="date-from"' in resp.text
+    assert 'id="date-to"' in resp.text
+
+
 def test_home_redirects_to_latest_upload_after_data_exists(client):
     with open(FIXTURE, "rb") as f:
         client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
