@@ -29,7 +29,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 # All three are overridable via env vars (e.g. on Render) without a code
 # change, but default to real values so this works locally with zero setup.
-LOGIN_EMAIL = os.environ.get("LOGIN_EMAIL", "drskumar1164@gamil.com")
+LOGIN_EMAIL = os.environ.get("LOGIN_EMAIL", "drskumar1164@gmail.com")
 LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "Sandy@1164")
 # Falls back to a freshly-generated secret if unset -- fine for local use,
 # but means sessions won't survive a server restart. Set SESSION_SECRET_KEY
