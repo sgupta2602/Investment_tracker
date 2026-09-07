@@ -36,6 +36,18 @@ LOGIN_PASSWORD = os.environ.get("LOGIN_PASSWORD", "Sandy@1164")
 # on Render so logins persist across deploys/restarts there.
 SESSION_SECRET = os.environ.get("SESSION_SECRET_KEY", secrets.token_hex(32))
 
+# Diagnostic only, printed once at startup -- no secret VALUES logged, just
+# where each one came from and its length, so an env var silently
+# overriding the expected default (or a stray whitespace char in one set
+# via the Render dashboard) is visible in the Logs tab immediately, instead
+# of needing to guess from failed login attempts.
+print(
+    f"[startup] LOGIN_EMAIL source={'env' if 'LOGIN_EMAIL' in os.environ else 'default'} "
+    f"len={len(LOGIN_EMAIL)} | LOGIN_PASSWORD source="
+    f"{'env' if 'LOGIN_PASSWORD' in os.environ else 'default'} len={len(LOGIN_PASSWORD)}",
+    flush=True,
+)
+
 _PUBLIC_PATHS = {"/login"}
 
 
@@ -76,6 +88,16 @@ def login_submit(request: Request, email: str = Form(...), password: str = Form(
     email_ok = secrets.compare_digest(email.strip().lower(), LOGIN_EMAIL.lower())
     password_ok = secrets.compare_digest(password, LOGIN_PASSWORD)
     if not (email_ok and password_ok):
+        # Diagnostic only -- no secret VALUES logged, just whether each
+        # field matched and its length, so a mismatch (typo, autocorrect,
+        # or an env var silently overriding the expected credentials) is
+        # visible in Render's Logs tab instead of guessing blind.
+        print(
+            f"[login] rejected -- email_ok={email_ok} password_ok={password_ok} "
+            f"received_email_len={len(email)} expected_email_len={len(LOGIN_EMAIL)} "
+            f"received_password_len={len(password)} expected_password_len={len(LOGIN_PASSWORD)}",
+            flush=True,
+        )
         return templates.TemplateResponse(
             request, "login.html", {"error": "Incorrect email or password."}, status_code=401
         )
