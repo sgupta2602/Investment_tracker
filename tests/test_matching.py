@@ -26,16 +26,20 @@ def test_matches_option_buy_to_open_with_sell_to_close(transactions):
     assert abcd.account == "TEST123"
 
 
-def test_expired_options_are_ignored_for_now_and_leave_the_open_leg_dangling(transactions):
-    """SCOPE (current pass): 'Expired' is no longer a recognized closing
-    action. The Buy to Open leg still creates a lot (it's a real option
-    open) but nothing ever closes it now, so it surfaces as an open
-    position -- even though in reality the contract already lapsed. This
-    is a known, deliberate trade-off for the current narrowed scope."""
+def test_expired_options_close_automatically_at_zero_realized_value(transactions):
+    """An expired contract's Price/Fees/Amount are blank in the broker
+    export -- the money parser reads blank as 0.0, so 'Expired' closes the
+    position at $0 realized value (a total loss of the premium paid),
+    matched against its opening lot exactly like a real sale. Before this
+    fix, 'Expired' wasn't a recognized closing action at all, so the
+    opening leg was stranded looking like a still-open position even
+    though the contract had actually lapsed."""
     result = match_transactions(transactions)
-    assert not any(t.ticker == "WXYZ" for t in result.closed_trades)
-    wxyz_open = next(p for p in result.open_positions if p["symbol"] == "WXYZ 01/16/2026 10.00 P")
-    assert wxyz_open["remaining_units"] == 100
+    assert not any(p["symbol"] == "WXYZ 01/16/2026 10.00 P" for p in result.open_positions)
+    wxyz = next(t for t in result.closed_trades if t.ticker == "WXYZ")
+    assert wxyz.quantity == 100  # 1 contract * 100
+    assert wxyz.sell_price == 0.0
+    assert wxyz.cost_price > 0  # premium paid, nothing recovered -> a loss once enriched
 
 
 def test_plain_share_trades_are_ignored_entirely():
@@ -51,10 +55,9 @@ def test_plain_share_trades_are_ignored_entirely():
 
 def test_only_the_clean_options_round_trip_closes_in_the_fixture(transactions):
     result = match_transactions(transactions)
-    assert len(result.closed_trades) == 1
-    assert result.closed_trades[0].ticker == "ABCD"
-    # WXYZ's dangling open leg is the one expected open position (see above).
-    assert len(result.open_positions) == 1
+    assert len(result.closed_trades) == 2  # ABCD's real close + WXYZ's expiration
+    assert {t.ticker for t in result.closed_trades} == {"ABCD", "WXYZ"}
+    assert result.open_positions == []
     assert result.unmatched_closes == []
 
 

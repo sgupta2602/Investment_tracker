@@ -22,10 +22,14 @@ OPTION_SYMBOL_RE = re.compile(
 
 # SCOPE (user decision, current pass): options contracts only, opened and
 # closed cleanly within tracked history. "Buy"/"Sell" (plain share trades)
-# and "Expired" (contract lapsed instead of being sold) are deliberately
-# excluded for now -- easy to widen back later by adding to these sets.
+# are deliberately excluded for now -- easy to widen back later by adding
+# to these sets. "Expired" IS treated as a closing action: an expired
+# option's Price/Fees/Amount are blank in the broker export, which our
+# money parser already reads as 0.0 -- so it naturally closes the position
+# at $0 realized value (a total loss of the premium paid), instead of
+# leaving it stranded as a fake still-open position.
 OPENING_ACTIONS = {"Buy to Open"}
-CLOSING_ACTIONS = {"Sell to Close"}
+CLOSING_ACTIONS = {"Sell to Close", "Expired"}
 # Actions that are pure cash/income events, not trades.
 INCOME_ACTIONS = {
     "Cash Dividend",
