@@ -202,7 +202,8 @@
     formulas above.
   </p>
   <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
-    <li><strong class="text-slate-100">Included actions:</strong> Cash Dividend, Qualified Dividend, ADR Mgmt Fee, Foreign Tax Paid, MoneyLink Transfer.</li>
+    <li><strong class="text-slate-100">Included actions:</strong> Cash Dividend, Qualified Dividend, ADR Mgmt Fee, Foreign Tax Paid, MoneyLink Transfer, Journal.</li>
+    <li><strong class="text-slate-100">Relabeled for clarity:</strong> the broker's raw action names for two of these aren't obvious, so the Income tab shows a friendlier label instead (sign-aware, since either can in principle run either direction): <code>MoneyLink Transfer</code> -- Schwab's linked-bank-account transfer -- shows as <strong class="text-slate-100">Withdrawal</strong> (money left to your bank) or <strong class="text-slate-100">Deposit</strong> (money arrived from your bank). <code>Journal</code> -- an internal transfer to/from a <em>different brokerage account</em> (e.g. a family member's), not a bank -- shows as <strong class="text-slate-100">Journal Transfer (to Another Account)</strong> or <strong class="text-slate-100">Journal Transfer (from Another Account)</strong>.</li>
     <li><strong class="text-slate-100">Totals</strong> are a simple sum of the <code>Amount</code> column per action type, plus a grand total across all of them.</li>
   </ul>
 </div>

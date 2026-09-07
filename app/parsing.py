@@ -30,13 +30,19 @@ OPTION_SYMBOL_RE = re.compile(
 # leaving it stranded as a fake still-open position.
 OPENING_ACTIONS = {"Buy to Open"}
 CLOSING_ACTIONS = {"Sell to Close", "Expired"}
-# Actions that are pure cash/income events, not trades.
+# Actions that are pure cash/income events, not trades. Note some of
+# these are cash MOVEMENTS, not income in the everyday sense (MoneyLink
+# Transfer = a withdrawal/deposit to a linked bank account; Journal = an
+# internal transfer to/from another brokerage account, e.g. a family
+# member's) -- see income.py's DISPLAY_LABELS for the friendlier names
+# shown on the Income tab.
 INCOME_ACTIONS = {
     "Cash Dividend",
     "Qualified Dividend",
     "ADR Mgmt Fee",
     "Foreign Tax Paid",
     "MoneyLink Transfer",
+    "Journal",
 }
 
 

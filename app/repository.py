@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.db import get_conn
+from app.income import _display_label
 from app.parsing import Transaction, parse_option_symbol
 
 _DATE_FMT = "%Y-%m-%d %H:%M:%S"
@@ -262,12 +263,7 @@ def load_income_events_for_upload(upload_id: int) -> list[dict]:
             "SELECT * FROM income_events WHERE upload_id = ? ORDER BY event_date",
             (upload_id,),
         ).fetchall()
-        out = []
-        for r in rows:
-            d = dict(r)
-            d["date"] = _parse_dt(d.pop("event_date"))
-            out.append(d)
-        return out
+        return [_row_to_income_dict(r) for r in rows]
 
 
 def load_all_income_events() -> list[dict]:
@@ -275,9 +271,15 @@ def load_all_income_events() -> list[dict]:
         rows = conn.execute(
             "SELECT * FROM income_events ORDER BY event_date"
         ).fetchall()
-        out = []
-        for r in rows:
-            d = dict(r)
-            d["date"] = _parse_dt(d.pop("event_date"))
-            out.append(d)
-        return out
+        return [_row_to_income_dict(r) for r in rows]
+
+
+def _row_to_income_dict(r) -> dict:
+    """Reapplies income.py's friendly relabeling on every load -- label
+    isn't persisted (it's a pure function of action + amount, computed
+    fresh both at upload time via extract_income_events() and here on
+    reload, rather than duplicating the relabeling rules in two places)."""
+    d = dict(r)
+    d["date"] = _parse_dt(d.pop("event_date"))
+    d["label"] = _display_label(d["action"], d["amount"])
+    return d

@@ -29,7 +29,7 @@
       {% for e in income_events %}
       <tr class="border-t border-slate-800 hover:bg-slate-800/50">
         <td class="px-3 py-1 text-slate-300">{{ e.date.strftime('%m/%d/%Y') }}</td>
-        <td class="px-3 py-1 text-slate-300">{{ e.action }}</td>
+        <td class="px-3 py-1 text-slate-300">{{ e.label }}</td>
         <td class="px-3 py-1 text-slate-300">{{ e.symbol }}</td>
         <td class="px-3 py-1 text-slate-300">{{ e.description }}</td>
         <td class="px-3 py-1 text-right {{ 'text-emerald-400' if e.amount >= 0 else 'text-rose-400' }}">{{ e.amount | usd }}</td>
