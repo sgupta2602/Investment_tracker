@@ -23,6 +23,7 @@ from app.income import extract_income_events, income_totals
 from app.calc import LONG_TERM_RATE, LONG_TERM_THRESHOLD_DAYS, SHORT_TERM_RATE, enrich_trades
 from app.matching import OPTION_MULTIPLIER, match_transactions
 from app.parsing import extract_account_label, parse_transactions_csv
+from app.quotes import random_quote
 from app.summary import (
     gains_losses_by_term,
     monthly_performance,
@@ -30,6 +31,7 @@ from app.summary import (
     performance_by_recommender,
     performance_by_ticker,
     performance_stats,
+    top_bottom_tickers,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -79,7 +81,22 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Investment Tracker", lifespan=lifespan)
 app.add_middleware(RequireLoginMiddleware)
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET)
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def _inject_session_quote(request: Request) -> dict:
+    """Makes the per-login trading-wisdom banner (see quotes.py) available
+    in every template without threading it through each route's context
+    by hand. Falls back to nothing on login.html itself (doesn't extend
+    base.html, so it's simply unused there) and on any request made
+    before a quote's been assigned (shouldn't happen in practice, since
+    RequireLoginMiddleware already gates every other route on session
+    login, which is exactly where the quote gets set)."""
+    return {"quote_of_session": request.session.get("quote")}
+
+
+templates = Jinja2Templates(
+    directory=str(BASE_DIR / "templates"), context_processors=[_inject_session_quote]
+)
 templates.env.filters["usd"] = lambda v: ("-$" if v < 0 else "$") + f"{abs(v):,.2f}"
 templates.env.filters["pct"] = lambda v: f"{v * 100:,.2f}%"
 templates.env.filters["tojson"] = json.dumps
@@ -109,6 +126,7 @@ def login_submit(request: Request, email: str = Form(...), password: str = Form(
             request, "login.html", {"error": "Incorrect email or password."}, status_code=401
         )
     request.session["logged_in"] = True
+    request.session["quote"] = random_quote()
     return RedirectResponse(url="/", status_code=303)
 
 
@@ -231,6 +249,8 @@ def dashboard(request: Request, upload_id: int):
     # Recomputed fresh (cheap at personal data volumes) so "needs review"
     # always reflects current book state, not a stale snapshot.
     match_result = match_transactions(repo.load_all_transactions())
+    ticker_breakdown = performance_by_ticker(month_trades)
+    top_tickers, bottom_tickers = top_bottom_tickers(ticker_breakdown)
 
     return templates.TemplateResponse(
         request,
@@ -242,7 +262,9 @@ def dashboard(request: Request, upload_id: int):
             "month_trades": month_trades,
             "performance": monthly_performance(month_trades),
             "performance_stats": performance_stats(month_trades),
-            "ticker_breakdown": performance_by_ticker(month_trades),
+            "ticker_breakdown": ticker_breakdown,
+            "top_tickers": top_tickers,
+            "bottom_tickers": bottom_tickers,
             "upload_monthly_series": performance_by_month(month_trades),
             "term_breakdown": gains_losses_by_term(month_trades),
             "income_events": income_events,

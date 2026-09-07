@@ -6,6 +6,7 @@ from app.summary import (
     performance_by_recommender,
     performance_by_ticker,
     performance_stats,
+    top_bottom_tickers,
 )
 
 
@@ -16,8 +17,8 @@ def _trade(**overrides):
         "cost_basis": 1000.0,
         "gain_loss": 500.0,
         "recommended_by": "",
+        "buy_date": datetime(2026, 1, 1),
         "sell_date": datetime(2026, 1, 15),
-        "hold_period_months": 2.0,
     }
     base.update(overrides)
     return base
@@ -113,9 +114,9 @@ def test_months_sorted_chronologically_with_human_readable_labels():
 
 def test_performance_stats_win_rate_and_averages():
     trades = [
-        _trade(gain_loss=100.0, hold_period_months=1.0),
-        _trade(gain_loss=-50.0, hold_period_months=3.0),
-        _trade(gain_loss=200.0, hold_period_months=2.0),
+        _trade(gain_loss=100.0, buy_date=datetime(2026, 1, 1), sell_date=datetime(2026, 1, 11)),  # 10 days
+        _trade(gain_loss=-50.0, buy_date=datetime(2026, 1, 1), sell_date=datetime(2026, 1, 31)),  # 30 days
+        _trade(gain_loss=200.0, buy_date=datetime(2026, 1, 1), sell_date=datetime(2026, 1, 21)),  # 20 days
     ]
     stats = performance_stats(trades)
     assert stats["trade_count"] == 3
@@ -123,7 +124,7 @@ def test_performance_stats_win_rate_and_averages():
     assert stats["loss_count"] == 1
     assert stats["win_rate_pct"] == 2 / 3
     assert stats["avg_gain_per_trade"] == (100.0 - 50.0 + 200.0) / 3
-    assert stats["avg_hold_months"] == (1.0 + 3.0 + 2.0) / 3
+    assert stats["avg_hold_days"] == (10 + 30 + 20) / 3
 
 
 def test_performance_stats_empty_trades_no_division_by_zero():
@@ -131,7 +132,7 @@ def test_performance_stats_empty_trades_no_division_by_zero():
     assert stats["trade_count"] == 0
     assert stats["win_rate_pct"] == 0.0
     assert stats["avg_gain_per_trade"] == 0.0
-    assert stats["avg_hold_months"] == 0.0
+    assert stats["avg_hold_days"] == 0.0
 
 
 def test_performance_by_ticker_groups_and_sorts_by_gain():
@@ -147,3 +148,39 @@ def test_performance_by_ticker_groups_and_sorts_by_gain():
     assert aapl["trade_count"] == 2
     assert aapl["gain"] == 80.0
     assert aapl["win_rate_pct"] == 0.5
+
+
+def _ticker_row(ticker: str, gain: float) -> dict:
+    return {"ticker": ticker, "trade_count": 1, "gain": gain, "win_rate_pct": 1.0 if gain > 0 else 0.0}
+
+
+def test_top_bottom_tickers_splits_sorted_list_correctly():
+    # Already sorted descending, as performance_by_ticker() produces.
+    rows = [_ticker_row(t, g) for t, g in [
+        ("A", 1000), ("B", 800), ("C", 600), ("D", 400), ("E", 200),
+        ("F", -100), ("G", -300), ("H", -500), ("I", -700), ("J", -900),
+    ]]
+    top, bottom = top_bottom_tickers(rows, n=5)
+    assert [r["ticker"] for r in top] == ["A", "B", "C", "D", "E"]
+    # Worst first: J is the single biggest loser.
+    assert [r["ticker"] for r in bottom] == ["J", "I", "H", "G", "F"]
+
+
+def test_top_bottom_tickers_no_overlap_with_fewer_than_2n_tickers():
+    """With only 7 distinct tickers and n=5, a naive rows[:5] + rows[-5:]
+    would show 3 tickers in both lists -- this must stay disjoint."""
+    rows = [_ticker_row(t, g) for t, g in [
+        ("A", 500), ("B", 400), ("C", 300), ("D", 200), ("E", 100), ("F", -50), ("G", -200),
+    ]]
+    top, bottom = top_bottom_tickers(rows, n=5)
+    top_symbols = {r["ticker"] for r in top}
+    bottom_symbols = {r["ticker"] for r in bottom}
+    assert top_symbols.isdisjoint(bottom_symbols)
+    assert top_symbols == {"A", "B", "C", "D", "E"}
+    assert bottom_symbols == {"F", "G"}
+
+
+def test_top_bottom_tickers_empty_input():
+    top, bottom = top_bottom_tickers([], n=5)
+    assert top == []
+    assert bottom == []

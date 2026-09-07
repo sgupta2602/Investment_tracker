@@ -72,8 +72,10 @@ def performance_stats(trades: list[dict]) -> dict:
     monthly_performance()'s dollar totals, this is about the shape and
     consistency of the trading itself: how many trades, how often you
     won, the average outcome per trade, and how long positions were
-    typically held (hold_period_months already computed in calc.py as
-    (sell_date - buy_date).days / 30)."""
+    typically held. Hold period is computed directly in days from
+    sell_date - buy_date rather than reusing hold_period_months * 30,
+    since that field is itself a /30 approximation -- computing days
+    straight from the actual dates avoids compounding that rounding."""
     trade_count = len(trades)
     if not trade_count:
         return {
@@ -82,17 +84,18 @@ def performance_stats(trades: list[dict]) -> dict:
             "loss_count": 0,
             "win_rate_pct": 0.0,
             "avg_gain_per_trade": 0.0,
-            "avg_hold_months": 0.0,
+            "avg_hold_days": 0.0,
         }
     win_count = sum(1 for t in trades if t["gain_loss"] > 0)
     loss_count = sum(1 for t in trades if t["gain_loss"] < 0)
+    hold_days = [(t["sell_date"] - t["buy_date"]).days for t in trades]
     return {
         "trade_count": trade_count,
         "win_count": win_count,
         "loss_count": loss_count,
         "win_rate_pct": win_count / trade_count,
         "avg_gain_per_trade": sum(t["gain_loss"] for t in trades) / trade_count,
-        "avg_hold_months": sum(t["hold_period_months"] for t in trades) / trade_count,
+        "avg_hold_days": sum(hold_days) / trade_count,
     }
 
 
@@ -119,6 +122,21 @@ def performance_by_ticker(trades: list[dict]) -> list[dict]:
             }
         )
     return sorted(rows, key=lambda r: r["gain"], reverse=True)
+
+
+def top_bottom_tickers(ticker_rows: list[dict], n: int = 5) -> tuple[list[dict], list[dict]]:
+    """Splits an already gain-sorted-descending ticker breakdown (from
+    performance_by_ticker) into the top N winners and bottom N losers.
+    Guards against double-counting the same ticker in both lists when
+    there are fewer than 2N distinct tickers total -- e.g. with only 7
+    tickers traded, a naive rows[:5] + rows[-5:] would show 3 of them
+    twice; this keeps the two lists disjoint by drawing 'bottom' only
+    from whatever's left after 'top' is picked."""
+    top = ticker_rows[:n]
+    top_symbols = {r["ticker"] for r in top}
+    remaining = [r for r in ticker_rows if r["ticker"] not in top_symbols]
+    bottom = list(reversed(remaining[-n:]))
+    return top, bottom
 
 
 def performance_by_recommender(trades: list[dict]) -> list[dict]:

@@ -183,8 +183,22 @@
         </tr>
         <tr>
           <td class="px-3 py-2 font-semibold text-slate-100">Avg Hold Period</td>
-          <td class="px-3 py-2 text-cyan-300"><code>average(Hold Period Months)</code></td>
-          <td class="px-3 py-2 text-slate-400">Same Hold Period Months figure from the Trade Log, just averaged across the period.</td>
+          <td class="px-3 py-2 text-cyan-300"><code>average(Sell Date &minus; Buy Date, in days)</code></td>
+          <td class="px-3 py-2 text-slate-400">
+            Computed directly in days, not from the Trade Log's Hold Period Months column --
+            that column is itself a /30 approximation, so averaging days straight from the
+            actual dates avoids compounding that rounding.
+          </td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold text-slate-100">Top 5 Winners / Bottom 5 Losers</td>
+          <td class="px-3 py-2 text-cyan-300"><code>the 5 highest and 5 lowest rows from the By Ticker breakdown</code></td>
+          <td class="px-3 py-2 text-slate-400">
+            Which specific tickers actually drove this period's total gain (or loss), biggest
+            first in both directions. If you traded fewer than 10 distinct tickers in the
+            period, the two lists never overlap -- a ticker already shown as a winner won't
+            also appear in the losers list.
+          </td>
         </tr>
         <tr>
           <td class="px-3 py-2 font-semibold text-slate-100">Month-by-Month / By Ticker (Monthly Performance tab)</td>

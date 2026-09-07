@@ -54,6 +54,22 @@ def test_login_with_correct_credentials_grants_access(anon_client):
     assert home.status_code == 200
 
 
+def test_login_assigns_a_random_quote_shown_on_every_page(anon_client):
+    """The trading-wisdom banner is picked once per login and injected
+    into every base.html-extending page via a context processor -- not
+    threaded through each route's context by hand, so this is worth
+    asserting end-to-end rather than just unit-testing random_quote()."""
+    import app.main as main_module
+    from app.quotes import TRADING_QUOTES
+
+    anon_client.post(
+        "/login",
+        data={"email": main_module.LOGIN_EMAIL, "password": main_module.LOGIN_PASSWORD},
+    )
+    home = anon_client.get("/")
+    assert any(q in home.text for q in TRADING_QUOTES)
+
+
 def test_login_with_wrong_password_rejected(anon_client):
     import app.main as main_module
 
