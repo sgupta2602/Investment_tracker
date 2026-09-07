@@ -207,4 +207,18 @@
   </ul>
 </div>
 
+<!-- Annotations -->
+<div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+  <h3 class="font-semibold text-slate-200 mb-1">8. Recommended By / Reason / Notes (Your Own Data, Not the Broker's)</h3>
+  <p class="text-sm text-slate-500 mb-4">
+    Three free-text columns at the right edge of the Trade Log that you fill in yourself --
+    the broker CSV never contains this, it's purely for your own tracking.
+  </p>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong class="text-slate-100">Auto-save:</strong> each field saves the moment you click away from it (a quick green border flash confirms it saved; red means it failed) -- no submit button, and it won't reload the page or lose your current filters.</li>
+    <li><strong class="text-slate-100">Survives re-uploads:</strong> stored in a separate table keyed by trade identity (account/ticker/strike/expiration/buy date/sell date/quantity), not by row ID -- because the Trade Log itself gets fully rebuilt from scratch every time you upload or delete a statement. Your notes stick around across that rebuild.</li>
+    <li><strong class="text-slate-100">Gain by Recommender</strong> (Overview page): groups every closed trade by whatever name you typed into <strong class="text-slate-100">Recommended By</strong>, showing their total gain, yield, trade count, and the exact list of tickers behind that total. Trades with nothing filled in land under <strong class="text-slate-100">Unspecified</strong> rather than being dropped, so the group totals always add up to the grand total.</li>
+  </ul>
+</div>
+
 {% endblock %}

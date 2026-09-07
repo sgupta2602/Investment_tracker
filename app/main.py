@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -23,7 +23,12 @@ from app.income import extract_income_events, income_totals
 from app.calc import LONG_TERM_RATE, LONG_TERM_THRESHOLD_DAYS, SHORT_TERM_RATE, enrich_trades
 from app.matching import OPTION_MULTIPLIER, match_transactions
 from app.parsing import extract_account_label, parse_transactions_csv
-from app.summary import gains_losses_by_term, monthly_performance, performance_by_upload
+from app.summary import (
+    gains_losses_by_term,
+    monthly_performance,
+    performance_by_recommender,
+    performance_by_upload,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -197,6 +202,23 @@ def delete_upload(upload_id: int):
     return RedirectResponse(url="/overview", status_code=303)
 
 
+@app.post("/trade_annotation")
+async def save_trade_annotation(request: Request):
+    """Auto-save endpoint for the Trade Log's editable Notes/Comments,
+    Recommended By, and Reason columns -- called via fetch() on blur, not
+    a full-page form post, so typing a note doesn't lose your current
+    filters/scroll position. Kept in a separate table from closed_trades
+    (see db.py) so it survives the next statement upload's full rebuild."""
+    body = await request.json()
+    key = body.get("trade_key", "")
+    field = body.get("field", "")
+    value = (body.get("value") or "").strip()
+    if not key or field not in repo.ANNOTATION_FIELDS:
+        return JSONResponse({"ok": False, "error": "invalid field or trade_key"}, status_code=400)
+    repo.save_trade_annotation_field(key, field, value)
+    return JSONResponse({"ok": True})
+
+
 @app.get("/dashboard/{upload_id}")
 def dashboard(request: Request, upload_id: int):
     uploads = repo.list_uploads()
@@ -249,6 +271,7 @@ def overview(request: Request):
             "period_series": period_series,
             "cumulative_points": cumulative_points,
             "trade_count": len(all_trades),
+            "recommender_breakdown": performance_by_recommender(all_trades),
         },
     )
 

@@ -163,12 +163,69 @@ def _row_to_trade_dict(r) -> dict:
     return d
 
 
+# --- User-editable annotations (Notes/Comments, Recommended By, Reason) ---
+# Kept in a separate table, keyed by a stable natural key rather than
+# closed_trades.id, precisely because closed_trades gets fully rebuilt on
+# every upload/delete -- see the trade_annotations table comment in db.py.
+ANNOTATION_FIELDS = {"notes", "recommended_by", "reason"}
+
+
+def trade_key(t: dict) -> str:
+    """Deterministic identity for a closed trade that survives a full
+    closed_trades rebuild, as long as the same transactions still produce
+    the same trade. Collision risk (two genuinely distinct trades sharing
+    every one of these fields) is negligible for personal trading data --
+    accepted as a YAGNI trade-off rather than inventing a heavier ID
+    scheme nothing here actually needs."""
+    return "|".join(
+        str(x)
+        for x in [
+            t.get("account"),
+            t.get("ticker"),
+            t.get("strike_price"),
+            _fmt_dt(t.get("expiration")),
+            _fmt_dt(t["buy_date"]),
+            _fmt_dt(t["sell_date"]),
+            t["quantity"],
+        ]
+    )
+
+
+def save_trade_annotation_field(key: str, field: str, value: str) -> None:
+    if field not in ANNOTATION_FIELDS:
+        raise ValueError(f"Unknown annotation field: {field}")
+    with get_conn() as conn:
+        conn.execute(
+            f"""INSERT INTO trade_annotations (trade_key, {field}, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(trade_key) DO UPDATE SET {field} = excluded.{field}, updated_at = excluded.updated_at""",
+            (key, value, datetime.now().strftime(_DATE_FMT)),
+        )
+
+
+def load_all_annotations() -> dict[str, dict]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM trade_annotations").fetchall()
+        return {r["trade_key"]: dict(r) for r in rows}
+
+
+def _attach_annotations(trades: list[dict]) -> list[dict]:
+    annotations = load_all_annotations()
+    for t in trades:
+        key = trade_key(t)
+        t["trade_key"] = key
+        ann = annotations.get(key, {})
+        for field in ANNOTATION_FIELDS:
+            t[field] = ann.get(field) or ""
+    return trades
+
+
 def load_all_closed_trades() -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(
             "SELECT * FROM closed_trades ORDER BY sell_date"
         ).fetchall()
-        return [_row_to_trade_dict(r) for r in rows]
+        return _attach_annotations([_row_to_trade_dict(r) for r in rows])
 
 
 def load_closed_trades_for_upload(upload_id: int) -> list[dict]:
@@ -177,7 +234,7 @@ def load_closed_trades_for_upload(upload_id: int) -> list[dict]:
             "SELECT * FROM closed_trades WHERE upload_id = ? ORDER BY sell_date",
             (upload_id,),
         ).fetchall()
-        return [_row_to_trade_dict(r) for r in rows]
+        return _attach_annotations([_row_to_trade_dict(r) for r in rows])
 
 
 def save_income_events(upload_id: int, events: list[dict]) -> None:

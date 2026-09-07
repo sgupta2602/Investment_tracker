@@ -2,6 +2,7 @@
 FastAPI app and check the dashboard renders with sane numbers. Uses an
 isolated temp DB so it never touches real data."""
 import importlib
+import re
 from pathlib import Path
 
 import pytest
@@ -157,6 +158,88 @@ def test_delete_upload_removes_its_statement_and_trades(client):
 
     home = client.get("/")
     assert "Upload your broker transaction CSV" in home.text
+
+
+def _extract_trade_key(html: str, ticker: str) -> str:
+    """Pulls the data-trade-key attribute for the first row matching a
+    given ticker out of the rendered Trade Log HTML."""
+    match = re.search(
+        rf'data-ticker="{ticker.lower()}"[^>]*>.*?data-trade-key="([^"]+)"',
+        html,
+        re.DOTALL,
+    )
+    assert match, f"couldn't find a trade-key for ticker {ticker!r} in the rendered page"
+    return match.group(1)
+
+
+def test_trade_annotation_saves_and_shows_up_on_reload(client):
+    with open(FIXTURE, "rb") as f:
+        dashboard = client.post(
+            "/upload", files={"file": ("sample_transactions.csv", f, "text/csv")}
+        )
+    key = _extract_trade_key(dashboard.text, "ABCD")
+
+    resp = client.post(
+        "/trade_annotation",
+        json={"trade_key": key, "field": "recommended_by", "value": "Cousin Raj"},
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+
+    reloaded = client.get("/dashboard/1")
+    assert "Cousin Raj" in reloaded.text
+
+
+def test_trade_annotation_rejects_unknown_field(client):
+    resp = client.post(
+        "/trade_annotation",
+        json={"trade_key": "whatever", "field": "not_a_real_field", "value": "x"},
+    )
+    assert resp.status_code == 400
+
+
+def test_trade_annotation_survives_a_second_statement_upload(client):
+    """The whole point of the separate trade_annotations table: a new
+    statement upload triggers _rebuild_closed_trades(), which fully
+    DELETE+reinserts closed_trades. A note typed in before that upload
+    must still be there after it, not silently wiped."""
+    with open(FIXTURE, "rb") as f:
+        dashboard = client.post(
+            "/upload", files={"file": ("sample_transactions.csv", f, "text/csv")}
+        )
+    key = _extract_trade_key(dashboard.text, "ABCD")
+    client.post(
+        "/trade_annotation",
+        json={"trade_key": key, "field": "notes", "value": "Doubled down after the split"},
+    )
+
+    # A second, unrelated statement upload -- triggers a full closed_trades rebuild.
+    other_csv = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"03/01/2026","Buy to Open","QRS 05/01/2026 20.00 C","CALL QRS","1","$1.00","$0.10","-$100.10"\n'
+        '"03/15/2026","Sell to Close","QRS 05/01/2026 20.00 C","CALL QRS","1","$2.00","$0.10","$199.90"\n'
+    )
+    client.post("/upload", files={"file": ("other.csv", other_csv, "text/csv")})
+
+    reloaded = client.get("/dashboard/1")
+    assert "Doubled down after the split" in reloaded.text
+
+
+def test_recommended_by_shows_up_on_overview_breakdown(client):
+    with open(FIXTURE, "rb") as f:
+        dashboard = client.post(
+            "/upload", files={"file": ("sample_transactions.csv", f, "text/csv")}
+        )
+    key = _extract_trade_key(dashboard.text, "ABCD")
+    client.post(
+        "/trade_annotation",
+        json={"trade_key": key, "field": "recommended_by", "value": "Cousin Raj"},
+    )
+
+    overview = client.get("/overview")
+    assert overview.status_code == 200
+    assert "Cousin Raj" in overview.text
+    assert "ABCD" in overview.text  # ticker shows in that recommender's row
 
 
 def test_delete_upload_unwinds_a_cross_upload_match(client):

@@ -65,6 +65,9 @@
         <th scope="col" class="px-2 py-2 text-right">Cum. Gain</th>
         <th scope="col" class="px-2 py-2 text-right">Cum. Gain %</th>
         <th scope="col" class="px-2 py-2 text-right">Est. Tax</th>
+        <th scope="col" class="px-2 py-2 text-left">Recommended By</th>
+        <th scope="col" class="px-2 py-2 text-left">Reason to Buy/Sell</th>
+        <th scope="col" class="px-2 py-2 text-left">Notes/Comments</th>
       </tr>
     </thead>
     <tbody id="trade-log-body" class="bg-slate-900">
@@ -98,16 +101,54 @@
         <td class="px-2 py-1 text-right text-slate-300">{{ t.cumulative_gain | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.cumulative_gain_pct | pct }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.estimated_tax | usd }}</td>
+        <td class="px-2 py-1">
+          <input type="text" class="annotation-input bg-slate-800 border border-slate-700 text-slate-200 rounded px-1.5 py-1 text-xs w-24 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                 data-trade-key="{{ t.trade_key }}" data-field="recommended_by" value="{{ t.recommended_by }}"
+                 placeholder="Name" aria-label="Recommended by, for {{ t.ticker }} sold {{ t.sell_date.strftime('%m/%d/%Y') }}" onblur="saveAnnotation(this)" />
+        </td>
+        <td class="px-2 py-1">
+          <input type="text" class="annotation-input bg-slate-800 border border-slate-700 text-slate-200 rounded px-1.5 py-1 text-xs w-32 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                 data-trade-key="{{ t.trade_key }}" data-field="reason" value="{{ t.reason }}"
+                 placeholder="Why buy/sell" aria-label="Reason to buy or sell, for {{ t.ticker }} sold {{ t.sell_date.strftime('%m/%d/%Y') }}" onblur="saveAnnotation(this)" />
+        </td>
+        <td class="px-2 py-1">
+          <input type="text" class="annotation-input bg-slate-800 border border-slate-700 text-slate-200 rounded px-1.5 py-1 text-xs w-32 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                 data-trade-key="{{ t.trade_key }}" data-field="notes" value="{{ t.notes }}"
+                 placeholder="Notes" aria-label="Notes and comments, for {{ t.ticker }} sold {{ t.sell_date.strftime('%m/%d/%Y') }}" onblur="saveAnnotation(this)" />
+        </td>
       </tr>
       {% endfor %}
       <tr id="trade-log-empty-row" hidden>
-        <td colspan="20" class="px-2 py-4 text-center text-slate-400">No trades match your filters.</td>
+        <td colspan="23" class="px-2 py-4 text-center text-slate-400">No trades match your filters.</td>
       </tr>
     </tbody>
   </table>
 </div>
 <p class="text-xs text-slate-500 mt-2">Rows highlighted in teal belong to the period currently selected above. Filtering only changes what's shown -- cumulative gain/tax totals stay based on your full trade history.</p>
+<p class="text-xs text-slate-500 mt-1">Recommended By / Reason / Notes save automatically when you click away from the field (border flashes green on success, red on failure) -- no submit button, no page reload. Fill in Recommended By to see who's actually contributing to your P&amp;L on the Overview page.</p>
 <script>
+  async function saveAnnotation(el) {
+    const payload = {
+      trade_key: el.dataset.tradeKey,
+      field: el.dataset.field,
+      value: el.value,
+    };
+    el.classList.remove("border-emerald-500", "border-rose-500");
+    let ok = false;
+    try {
+      const resp = await fetch("/trade_annotation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      ok = resp.ok;
+    } catch (e) {
+      ok = false;
+    }
+    el.classList.add(ok ? "border-emerald-500" : "border-rose-500");
+    setTimeout(() => el.classList.remove("border-emerald-500", "border-rose-500"), 1500);
+  }
+
   function filterTradeLog() {
     const search = document.getElementById("ticker-search").value.trim().toLowerCase();
     const from = document.getElementById("date-from").value;

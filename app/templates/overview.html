@@ -45,6 +45,40 @@
   </div>
 </div>
 
+<div class="rounded-xl border border-slate-800 bg-slate-900 p-5 mb-6">
+  <h3 class="font-semibold text-slate-200 mb-1">Gain by Recommender</h3>
+  <p class="text-xs text-slate-500 mb-3">
+    Pulled from the Trade Log's "Recommended By" column -- fill that in per trade to see who's
+    actually contributing to your P&amp;L, and which of their picks made up that total.
+    Trades with nothing filled in are grouped under "Unspecified" so the totals still add up.
+  </p>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <caption class="sr-only">Total gain and yield grouped by who recommended each trade</caption>
+      <thead class="bg-slate-800 text-slate-300">
+        <tr>
+          <th scope="col" class="px-3 py-2 text-left">Recommended By</th>
+          <th scope="col" class="px-3 py-2 text-right">Trades</th>
+          <th scope="col" class="px-3 py-2 text-left">Tickers</th>
+          <th scope="col" class="px-3 py-2 text-right">Total Gain</th>
+          <th scope="col" class="px-3 py-2 text-right">Yield</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recommender_breakdown %}
+        <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+          <td class="px-3 py-1 font-medium {{ 'text-slate-500 italic' if r.name == 'Unspecified' else 'text-slate-100' }}">{{ r.name }}</td>
+          <td class="px-3 py-1 text-right text-slate-300">{{ r.trade_count }}</td>
+          <td class="px-3 py-1 text-slate-400">{{ r.tickers | join(', ') }}</td>
+          <td class="px-3 py-1 text-right font-semibold {{ 'text-emerald-400' if r.gain >= 0 else 'text-rose-400' }}">{{ r.gain | usd }}</td>
+          <td class="px-3 py-1 text-right {{ 'text-emerald-400' if r.yield_pct >= 0 else 'text-rose-400' }}">{{ r.yield_pct | pct }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
   <h3 class="font-semibold text-slate-200 mb-3">Uploaded Statements</h3>
   <div class="overflow-x-auto">

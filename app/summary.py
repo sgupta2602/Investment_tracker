@@ -57,3 +57,23 @@ def performance_by_upload(all_trades: list[dict], uploads: list[dict]) -> list[d
         perf = monthly_performance(trades)
         series.append({"upload_id": u["id"], "label": u["filename"], **perf})
     return series
+
+
+def performance_by_recommender(trades: list[dict]) -> list[dict]:
+    """Groups closed trades by the Trade Log's 'Recommended By' field so
+    Overview can answer 'who told me about this stock, and how much did
+    their picks actually contribute to my P&L' -- the whole point of that
+    column existing. Trades nobody's tagged yet land under 'Unspecified'
+    (not dropped), so the group totals always reconcile against the
+    grand total shown elsewhere on the page."""
+    by_name: dict[str, list[dict]] = {}
+    for t in trades:
+        name = (t.get("recommended_by") or "").strip() or "Unspecified"
+        by_name.setdefault(name, []).append(t)
+
+    rows = []
+    for name, group in by_name.items():
+        perf = monthly_performance(group)
+        tickers = sorted({g["ticker"] for g in group})
+        rows.append({"name": name, "trade_count": len(group), "tickers": tickers, **perf})
+    return sorted(rows, key=lambda r: r["gain"], reverse=True)

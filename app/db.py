@@ -66,6 +66,23 @@ CREATE TABLE IF NOT EXISTS income_events (
     description TEXT,
     amount REAL NOT NULL
 );
+
+-- Deliberately NOT a column on closed_trades: that table gets fully
+-- DELETE+reinserted on every upload/delete (replace_closed_trades()
+-- rebuilds cumulative columns from scratch), which would silently wipe
+-- any user-typed notes. This table is keyed by a stable natural key
+-- (account/ticker/strike/expiration/buy_date/sell_date/quantity, see
+-- repository._trade_key) instead of closed_trades.id, so annotations
+-- survive rebuilds as long as the same transactions still produce the
+-- same trade.
+CREATE TABLE IF NOT EXISTS trade_annotations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trade_key TEXT NOT NULL UNIQUE,
+    notes TEXT,
+    recommended_by TEXT,
+    reason TEXT,
+    updated_at TEXT NOT NULL
+);
 """
 
 
