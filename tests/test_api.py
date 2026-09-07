@@ -84,6 +84,22 @@ def test_upload_then_dashboard_shows_closed_trades(client):
     assert "Trade Log" in resp.text
 
 
+def test_income_cards_are_clickable_filters_over_the_events_table(client):
+    """Same reasoning as the trade log filter test: this is pure
+    client-side JS wired up via data attributes, so assert directly on
+    the markup those attributes since JS logic bugs wouldn't otherwise
+    surface as a server-side error."""
+    with open(FIXTURE, "rb") as f:
+        resp = client.post(
+            "/upload",
+            files={"file": ("sample_transactions.csv", f, "text/csv")},
+        )
+    assert 'data-filter-label="Cash Dividend"' in resp.text
+    assert 'data-label="Cash Dividend"' in resp.text
+    assert "filterIncomeByLabel" in resp.text
+    assert 'id="income-filter-status"' in resp.text
+
+
 def test_trade_log_rows_carry_search_and_date_filter_attributes(client):
     """The ticker search + date range filter are pure client-side JS over
     these data attributes -- if they're missing/wrong, filtering silently
