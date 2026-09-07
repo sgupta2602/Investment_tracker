@@ -13,7 +13,10 @@
     <thead class="bg-amber-500/10 text-amber-300">
       <tr>
         <th scope="col" class="px-3 py-2 text-left">Close Date</th>
-        <th scope="col" class="px-3 py-2 text-left">Symbol</th>
+        <th scope="col" class="px-3 py-2 text-left">Ticker</th>
+        <th scope="col" class="px-3 py-2 text-left">Expiration</th>
+        <th scope="col" class="px-3 py-2 text-right">Strike</th>
+        <th scope="col" class="px-3 py-2 text-left">Type</th>
         <th scope="col" class="px-3 py-2 text-right">Unmatched Units</th>
         <th scope="col" class="px-3 py-2 text-left">Why</th>
       </tr>
@@ -22,7 +25,10 @@
       {% for u in unmatched_closes %}
       <tr class="border-t border-slate-800 hover:bg-slate-800/50">
         <td class="px-3 py-1 text-slate-300">{{ u.date.strftime('%m/%d/%Y') }}</td>
-        <td class="px-3 py-1 font-medium text-slate-100">{{ u.symbol }}</td>
+        <td class="px-3 py-1 font-medium text-slate-100">{{ u.ticker }}{% set is_adj = u.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
+        <td class="px-3 py-1 text-slate-300">{{ u.expiration.strftime('%m/%d/%Y') if u.expiration else '--' }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ u.strike | usd if u.strike is not none else '--' }}</td>
+        <td class="px-3 py-1 text-slate-300">{{ 'Call' if u.right == 'C' else ('Put' if u.right == 'P' else '--') }}</td>
         <td class="px-3 py-1 text-right text-slate-300">{{ "%.0f"|format(u.unmatched_units) }}</td>
         <td class="px-3 py-1 text-slate-400">{{ u.reason }}</td>
       </tr>
@@ -45,7 +51,10 @@
     <caption class="sr-only">Positions opened but not yet closed</caption>
     <thead class="bg-slate-800 text-slate-200">
       <tr>
-        <th scope="col" class="px-3 py-2 text-left">Symbol</th>
+        <th scope="col" class="px-3 py-2 text-left">Ticker</th>
+        <th scope="col" class="px-3 py-2 text-left">Expiration</th>
+        <th scope="col" class="px-3 py-2 text-right">Strike</th>
+        <th scope="col" class="px-3 py-2 text-left">Type</th>
         <th scope="col" class="px-3 py-2 text-left">Open Date</th>
         <th scope="col" class="px-3 py-2 text-right">Units</th>
         <th scope="col" class="px-3 py-2 text-right">Open Price</th>
@@ -54,7 +63,10 @@
     <tbody class="bg-slate-900">
       {% for p in open_positions %}
       <tr class="border-t border-slate-800 hover:bg-slate-800/50">
-        <td class="px-3 py-1 font-medium text-slate-100">{{ p.symbol }}</td>
+        <td class="px-3 py-1 font-medium text-slate-100">{{ p.ticker }}{% set is_adj = p.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
+        <td class="px-3 py-1 text-slate-300">{{ p.expiration.strftime('%m/%d/%Y') if p.expiration else '--' }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ p.strike | usd if p.strike is not none else '--' }}</td>
+        <td class="px-3 py-1 text-slate-300">{{ 'Call' if p.right == 'C' else ('Put' if p.right == 'P' else '--') }}</td>
         <td class="px-3 py-1 text-slate-300">{{ p.open_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-3 py-1 text-right text-slate-300">{{ "%.0f"|format(p.remaining_units) }}</td>
         <td class="px-3 py-1 text-right text-slate-300">{{ p.unit_price | usd }}</td>

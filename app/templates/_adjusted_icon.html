@@ -1,0 +1,6 @@
+{# Shared "i" info icon for OCC-adjusted option contracts (e.g. AZN1).
+   Set `is_adj` to the row's is_adjusted flag right before including this,
+   since the loop variable name differs between templates (t / u / p). #}
+{% if is_adj %}
+<span tabindex="0" title="OCC-adjusted contract: a corporate action (merger, spinoff, special dividend, ADR ratio change, etc.) forced the OCC to adjust this option's terms after it was opened. It's still the same underlying ticker -- just a distinct adjusted contract series (the broker's raw symbol had a trailing digit, e.g. 'AZN1' instead of 'AZN')." class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-bold ml-1 cursor-help align-middle">i</span>
+{% endif %}

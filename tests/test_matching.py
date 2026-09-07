@@ -83,6 +83,31 @@ def test_unmatched_close_when_no_opening_leg_present():
     assert result.unmatched_closes[0]["unmatched_units"] == 100
 
 
+def test_unmatched_close_and_open_position_carry_split_option_fields():
+    """Needs Review used to just dump the raw symbol blob. It should carry
+    the same parsed ticker/expiration/strike/right/is_adjusted fields the
+    Trade Log gets, so the UI can render real columns instead of one string."""
+    txns = [
+        Transaction(datetime(2026, 1, 5), "Sell to Close", "BAR 01/01/2026 5.00 P", "", 1, 2.0, 0.0, 200.0, "BAR", expiration=datetime(2026, 1, 1), strike=5.0, right="P"),
+        Transaction(datetime(2026, 1, 1), "Buy to Open", "FOO1 06/19/2026 10.00 C", "", 1, 3.0, 0.0, -300.0, "FOO", expiration=datetime(2026, 6, 19), strike=10.0, right="C", is_adjusted=True),
+    ]
+    result = match_transactions(txns)
+
+    unmatched = result.unmatched_closes[0]
+    assert unmatched["ticker"] == "BAR"
+    assert unmatched["expiration"] == datetime(2026, 1, 1)
+    assert unmatched["strike"] == 5.0
+    assert unmatched["right"] == "P"
+    assert unmatched["is_adjusted"] is False
+
+    open_pos = result.open_positions[0]
+    assert open_pos["ticker"] == "FOO"
+    assert open_pos["expiration"] == datetime(2026, 6, 19)
+    assert open_pos["strike"] == 10.0
+    assert open_pos["right"] == "C"
+    assert open_pos["is_adjusted"] is True
+
+
 def test_fifo_splits_close_across_multiple_lots():
     """Two separate opening lots at different prices, closed by one order --
     should produce two closed-trade rows, oldest lot consumed first."""

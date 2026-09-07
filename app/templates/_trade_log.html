@@ -77,10 +77,7 @@
         <td class="px-2 py-1 text-slate-300">{{ t.account }}</td>
         <td class="px-2 py-1 text-slate-300">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-2 py-1 font-medium text-slate-100">
-          {{ t.ticker }}
-          {% if t.is_adjusted %}
-          <span title="OCC-adjusted contract (corporate action changed its terms) -- underlying ticker shown is the real/unadjusted one" class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/15 text-violet-300 border border-violet-500/30">ADJ</span>
-          {% endif %}
+          {{ t.ticker }}{% set is_adj = t.is_adjusted %}{% include '_adjusted_icon.html' %}
         </td>
         <td class="px-2 py-1 text-right text-slate-300">{{ "%.0f"|format(t.quantity) }}</td>
         <td class="px-2 py-1 text-slate-300">{{ t.equity_type }}</td>

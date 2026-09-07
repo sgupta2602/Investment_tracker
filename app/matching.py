@@ -23,6 +23,11 @@ class _Lot:
     remaining_units: float
     unit_price: float
     fee_per_unit: float
+    ticker: str
+    expiration: Optional[datetime] = None
+    strike: Optional[float] = None
+    right: Optional[str] = None
+    is_adjusted: bool = False
 
 
 @dataclass
@@ -70,11 +75,23 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
         key = _lot_key(txn)
 
         if txn.action in OPENING_ACTIONS:
-            units, _ = _units_and_ticker(txn)
+            units, ticker = _units_and_ticker(txn)
             if units <= 0:
                 continue
             fee_per_unit = (txn.fees or 0.0) / units
-            lots[key].append(_Lot(txn.date, units, txn.price, fee_per_unit))
+            lots[key].append(
+                _Lot(
+                    txn.date,
+                    units,
+                    txn.price,
+                    fee_per_unit,
+                    ticker=ticker,
+                    expiration=txn.expiration,
+                    strike=txn.strike,
+                    right=txn.right,
+                    is_adjusted=txn.is_adjusted,
+                )
+            )
 
         elif txn.action in CLOSING_ACTIONS:
             units, ticker = _units_and_ticker(txn)
@@ -118,6 +135,10 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
                         "date": txn.date,
                         "symbol": txn.symbol,
                         "ticker": ticker,
+                        "expiration": txn.expiration,
+                        "strike": txn.strike,
+                        "right": txn.right,
+                        "is_adjusted": txn.is_adjusted,
                         "unmatched_units": remaining_to_close,
                         "reason": "No opening transaction found in this "
                         "upload (likely opened before the statement window).",
@@ -129,6 +150,11 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
             result.open_positions.append(
                 {
                     "symbol": key,
+                    "ticker": lot.ticker,
+                    "expiration": lot.expiration,
+                    "strike": lot.strike,
+                    "right": lot.right,
+                    "is_adjusted": lot.is_adjusted,
                     "open_date": lot.open_date,
                     "remaining_units": lot.remaining_units,
                     "unit_price": lot.unit_price,
