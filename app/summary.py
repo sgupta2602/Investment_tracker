@@ -2,6 +2,8 @@
 'Gains / Losses / Tax by term' summary blocks (rows 26-32)."""
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.calc import LONG_TERM_RATE, SHORT_TERM_RATE
 
 
@@ -43,19 +45,25 @@ def gains_losses_by_term(trades: list[dict]) -> dict:
     }
 
 
-def performance_by_upload(all_trades: list[dict], uploads: list[dict]) -> list[dict]:
-    """One performance snapshot per upload, oldest first -- feeds the
-    Overview dashboard's per-period chart."""
-    by_upload: dict[int, list[dict]] = {}
-    for t in all_trades:
-        by_upload.setdefault(t["upload_id"], []).append(t)
+def performance_by_month(trades: list[dict]) -> list[dict]:
+    """True calendar month-over-month, grouped by each trade's actual
+    sell_date -- NOT by which statement it happened to be uploaded in.
+    Replaces the old upload-based 'Gain by Statement Period' grouping,
+    which was really just an artifact of how/when statements got
+    uploaded (one upload can span multiple months, or one month can be
+    split across two uploads if you upload mid-month) rather than a
+    real trend line. Spans the entire trade history, oldest month first."""
+    by_month: dict[str, list[dict]] = {}
+    for t in trades:
+        key = t["sell_date"].strftime("%Y-%m")
+        by_month.setdefault(key, []).append(t)
 
-    ordered_uploads = sorted(uploads, key=lambda u: u["id"])
     series = []
-    for u in ordered_uploads:
-        trades = by_upload.get(u["id"], [])
-        perf = monthly_performance(trades)
-        series.append({"upload_id": u["id"], "label": u["filename"], **perf})
+    for key in sorted(by_month.keys()):
+        group = by_month[key]
+        perf = monthly_performance(group)
+        label = datetime.strptime(key, "%Y-%m").strftime("%b %Y")
+        series.append({"month": key, "label": label, "trade_count": len(group), **perf})
     return series
 
 

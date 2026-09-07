@@ -39,9 +39,14 @@
 </div>
 
 <div class="rounded-xl border border-slate-800 bg-slate-900 p-5 mb-6">
-  <h3 class="font-semibold text-slate-200 mb-3">Gain by Statement Period</h3>
+  <h3 class="font-semibold text-slate-200 mb-1">Month-over-Month Gain</h3>
+  <p class="text-xs text-slate-500 mb-3">
+    Grouped by each trade's actual sell date, across your whole trade history -- not by which
+    statement it happened to be uploaded in (one upload can span multiple months, or one month
+    can land in two uploads).
+  </p>
   <div class="h-72">
-    <canvas id="periodChart" role="img" aria-label="Bar chart of gain per uploaded statement"></canvas>
+    <canvas id="monthlyChart" role="img" aria-label="Bar chart of gain per calendar month, across all uploaded statements"></canvas>
   </div>
 </div>
 
@@ -167,7 +172,7 @@
   }
 
   const cumulativePoints = {{ cumulative_points | tojson | safe }};
-  const periodSeries = {{ period_series | tojson | safe }};
+  const monthlySeries = {{ monthly_series | tojson | safe }};
   const termBreakdown = {{ term_breakdown | tojson | safe }};
 
   const GRID_COLOR = "#1e293b";   // slate-800
@@ -218,14 +223,14 @@
     },
   });
 
-  new Chart(document.getElementById("periodChart"), {
+  new Chart(document.getElementById("monthlyChart"), {
     type: "bar",
     data: {
-      labels: periodSeries.map((p) => p.label),
+      labels: monthlySeries.map((p) => p.label),
       datasets: [{
-        label: "Gain per Statement ($)",
-        data: periodSeries.map((p) => p.gain),
-        backgroundColor: periodSeries.map((p) => (p.gain >= 0 ? "#34d399" : "#fb7185")),
+        label: "Gain per Month ($)",
+        data: monthlySeries.map((p) => p.gain),
+        backgroundColor: monthlySeries.map((p) => (p.gain >= 0 ? "#34d399" : "#fb7185")),
         borderRadius: 6,
       }],
     },

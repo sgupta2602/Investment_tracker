@@ -26,8 +26,8 @@ from app.parsing import extract_account_label, parse_transactions_csv
 from app.summary import (
     gains_losses_by_term,
     monthly_performance,
+    performance_by_month,
     performance_by_recommender,
-    performance_by_upload,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -255,7 +255,7 @@ def overview(request: Request):
         return RedirectResponse(url="/upload")
 
     all_trades = repo.load_all_closed_trades()
-    period_series = performance_by_upload(all_trades, uploads)
+    monthly_series = performance_by_month(all_trades)
     cumulative_points = [
         {"date": t["sell_date"].strftime("%m/%d/%Y"), "value": round(t["cumulative_gain"], 2)}
         for t in all_trades
@@ -268,7 +268,7 @@ def overview(request: Request):
             "uploads": uploads,
             "performance": monthly_performance(all_trades),
             "term_breakdown": gains_losses_by_term(all_trades),
-            "period_series": period_series,
+            "monthly_series": monthly_series,
             "cumulative_points": cumulative_points,
             "trade_count": len(all_trades),
             "recommender_breakdown": performance_by_recommender(all_trades),

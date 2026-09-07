@@ -131,7 +131,7 @@ def test_overview_shows_performance_charts_after_upload(client):
     assert resp.status_code == 200
     assert "cumulativeChart" in resp.text
     assert "termChart" in resp.text
-    assert "periodChart" in resp.text
+    assert "monthlyChart" in resp.text
 
 
 def test_home_redirects_to_overview_not_stale_dashboard(client):
