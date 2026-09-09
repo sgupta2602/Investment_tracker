@@ -269,6 +269,7 @@ async def save_trade_annotation(request: Request):
 @app.get("/dashboard/{upload_id}")
 def dashboard(request: Request, upload_id: int):
     uploads = repo.list_uploads()
+    grouped_uploads = repo.group_uploads_by_account(uploads)
     all_trades_unfiltered = repo.load_all_closed_trades()
     # Always computed from the FULL, unfiltered history -- so the dropdown
     # keeps listing every account no matter which one is currently selected.
@@ -307,6 +308,7 @@ def dashboard(request: Request, upload_id: int):
         "dashboard.html",
         {
             "uploads": uploads,
+            "grouped_uploads": grouped_uploads,
             "current_upload_id": upload_id,
             "all_trades": all_trades,
             "accounts": accounts,

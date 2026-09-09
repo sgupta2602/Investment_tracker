@@ -32,11 +32,54 @@ def create_upload(filename: str, account: Optional[str]) -> int:
 
 
 def list_uploads() -> list[dict]:
+    """Each upload also gets a human-friendly period_label -- e.g.
+    'Jan 01\u201331, 2026' -- computed from the MIN/MAX transaction date
+    actually contained in that upload, not the raw filename or the
+    timestamp it happened to be uploaded at. Sorted by that same period
+    (newest covered period first), since 'Viewing period' is about what
+    date range a statement covers, not the order you got around to
+    uploading them in -- so uploading January's statement after
+    February's still puts January in the right spot.
+
+    Falls back to the filename for the rare upload with zero
+    transactions (fully empty CSV) where there's no date range to show.
+    """
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM uploads ORDER BY uploaded_at DESC"
+            """SELECT u.*, MIN(rt.txn_date) AS date_from, MAX(rt.txn_date) AS date_to
+               FROM uploads u
+               LEFT JOIN raw_transactions rt ON rt.upload_id = u.id
+               GROUP BY u.id
+               ORDER BY date_from DESC, u.uploaded_at DESC"""
         ).fetchall()
-        return [dict(r) for r in rows]
+        uploads = [dict(r) for r in rows]
+    for u in uploads:
+        date_from = _parse_dt(u["date_from"])
+        date_to = _parse_dt(u["date_to"])
+        u["period_label"] = _format_period_label(date_from, date_to, u["filename"])
+    return uploads
+
+
+def _format_period_label(date_from: Optional[datetime], date_to: Optional[datetime], filename: str) -> str:
+    if not date_from or not date_to:
+        return filename
+    if date_from.date() == date_to.date():
+        return date_from.strftime("%b %d, %Y")
+    if (date_from.year, date_from.month) == (date_to.year, date_to.month):
+        return f"{date_from.strftime('%b %d')}\u2013{date_to.strftime('%d, %Y')}"
+    if date_from.year == date_to.year:
+        return f"{date_from.strftime('%b %d')} \u2013 {date_to.strftime('%b %d, %Y')}"
+    return f"{date_from.strftime('%b %d, %Y')} \u2013 {date_to.strftime('%b %d, %Y')}"
+
+
+def group_uploads_by_account(uploads: list[dict]) -> list[dict]:
+    """Splits an already-sorted uploads list into per-account groups for
+    an <optgroup>-style dropdown, without re-sorting -- each group keeps
+    the same relative (period-descending) order it arrived in."""
+    groups: dict[str, list[dict]] = {}
+    for u in uploads:
+        groups.setdefault(u.get("account") or "Unknown", []).append(u)
+    return [{"account": acct, "uploads": items} for acct, items in sorted(groups.items())]
 
 
 def delete_upload(upload_id: int) -> None:

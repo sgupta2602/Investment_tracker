@@ -119,3 +119,87 @@ def _enriched_row(trade: dict) -> list[dict]:
             "is_adjusted": False,
         }
     ]
+
+
+# --- Upload period labels / account grouping -------------------------------
+
+
+def _txn(**overrides):
+    from app.parsing import Transaction
+
+    base = dict(
+        date=datetime(2026, 1, 5),
+        action="Buy to Open",
+        symbol="ABCD 01/16/2026 50.00 C",
+        description="",
+        quantity=1.0,
+        price=1.0,
+        fees=0.0,
+        amount=-100.0,
+    )
+    base.update(overrides)
+    return Transaction(**base)
+
+
+def test_format_period_label_single_day():
+    label = repo._format_period_label(datetime(2026, 1, 5), datetime(2026, 1, 5), "f.csv")
+    assert label == "Jan 05, 2026"
+
+
+def test_format_period_label_same_month():
+    label = repo._format_period_label(datetime(2026, 1, 1), datetime(2026, 1, 31), "f.csv")
+    assert label == "Jan 01\u201331, 2026"
+
+
+def test_format_period_label_same_year_different_months():
+    label = repo._format_period_label(datetime(2026, 1, 15), datetime(2026, 2, 20), "f.csv")
+    assert label == "Jan 15 \u2013 Feb 20, 2026"
+
+
+def test_format_period_label_spans_years():
+    label = repo._format_period_label(datetime(2025, 12, 15), datetime(2026, 1, 10), "f.csv")
+    assert label == "Dec 15, 2025 \u2013 Jan 10, 2026"
+
+
+def test_format_period_label_falls_back_to_filename_with_no_dates():
+    assert repo._format_period_label(None, None, "empty_statement.csv") == "empty_statement.csv"
+
+
+def test_list_uploads_computes_period_label_from_actual_transaction_dates():
+    """Not the filename, not the upload timestamp -- the real MIN/MAX
+    transaction date contained in that upload."""
+    upload_id = repo.create_upload("Jan_Statement.csv", "XXX939")
+    repo.save_raw_transactions(
+        upload_id,
+        [_txn(date=datetime(2026, 1, 3)), _txn(date=datetime(2026, 1, 28))],
+    )
+
+    [upload] = repo.list_uploads()
+    assert upload["period_label"] == "Jan 03\u201328, 2026"
+
+
+def test_list_uploads_sorted_by_period_not_upload_order():
+    """Uploading February's statement before January's must still show
+    January first -- 'Viewing period' is about the covered date range,
+    not the order you happened to upload them in."""
+    feb_id = repo.create_upload("Feb.csv", "XXX939")
+    repo.save_raw_transactions(feb_id, [_txn(date=datetime(2026, 2, 1))])
+    jan_id = repo.create_upload("Jan.csv", "XXX939")
+    repo.save_raw_transactions(jan_id, [_txn(date=datetime(2026, 1, 1))])
+
+    uploads = repo.list_uploads()
+    assert [u["id"] for u in uploads] == [feb_id, jan_id]  # newest period first
+
+
+def test_group_uploads_by_account_preserves_relative_order_per_group():
+    uploads = [
+        {"id": 1, "account": "XXX111", "period_label": "Feb 2026"},
+        {"id": 2, "account": "XXX939", "period_label": "Feb 2026"},
+        {"id": 3, "account": "XXX111", "period_label": "Jan 2026"},
+    ]
+    grouped = repo.group_uploads_by_account(uploads)
+    by_account = {g["account"]: [u["id"] for u in g["uploads"]] for g in grouped}
+
+    assert by_account == {"XXX111": [1, 3], "XXX939": [2]}
+    # Accounts themselves come back alphabetically sorted.
+    assert [g["account"] for g in grouped] == ["XXX111", "XXX939"]

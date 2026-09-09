@@ -139,6 +139,7 @@
       <caption class="sr-only">List of uploaded statements with a link to each period's detail dashboard</caption>
       <thead class="bg-slate-800 text-slate-300">
         <tr>
+          <th scope="col" class="px-3 py-2 text-left">Period</th>
           <th scope="col" class="px-3 py-2 text-left">File</th>
           <th scope="col" class="px-3 py-2 text-left">Account</th>
           <th scope="col" class="px-3 py-2 text-left">Uploaded</th>
@@ -149,6 +150,7 @@
       <tbody>
         {% for u in uploads %}
         <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+          <td class="px-3 py-1 font-medium text-slate-100">{{ u.period_label }}</td>
           <td class="px-3 py-1 text-slate-300">{{ u.filename }}</td>
           <td class="px-3 py-1 text-slate-300">{{ u.account or "-" }}</td>
           <td class="px-3 py-1 text-slate-300">{{ u.uploaded_at }}</td>

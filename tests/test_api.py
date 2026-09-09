@@ -118,7 +118,7 @@ def test_selecting_an_account_scopes_every_tab_to_just_that_account(client):
         upload2 = client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
 
     # TestClient follows redirects, so pull the current upload's id off the rendered <select>.
-    upload_id = re.search(r'value="(\d+)" selected', upload2.text).group(1)
+    upload_id = re.search(r'<option value="(\d+)"[^>]*selected', upload2.text).group(1)
 
     combined = client.get(f"/dashboard/{upload_id}")
     scoped = client.get(f"/dashboard/{upload_id}?account=XX111")
