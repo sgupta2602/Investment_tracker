@@ -1,11 +1,14 @@
 <h2 class="text-lg font-bold mb-3 text-slate-100">Monthly Performance</h2>
 {% if not month_trades %}
-<p class="text-slate-400 text-sm">No closed trades{{ '' if viewing_all_periods else ' in this upload' }}.</p>
+<p class="text-slate-400 text-sm">No closed trades{{ ' in the selected months' if selected_months else ('' if viewing_all_periods else ' in this upload') }}.</p>
 {% else %}
 <p class="text-xs text-slate-500 mb-3">
-  {% if viewing_all_periods %}
+  {% if selected_months %}
+  Everything below reflects only the <strong class="text-slate-300">{{ selected_months | length }} month{{ 's' if selected_months | length != 1 }} you've selected</strong> above{% if selected_account %} for <strong class="text-slate-300">{{ selected_account }}</strong>{% endif %} --
+  clear that filter to see every statement combined instead.
+  {% elif viewing_all_periods %}
   Everything below reflects <strong class="text-slate-300">every statement you've uploaded, combined</strong>{% if selected_account %} for <strong class="text-slate-300">{{ selected_account }}</strong>{% endif %} --
-  pick a specific period above to narrow this down to just one statement.
+  pick a specific period above, or filter to specific months, to narrow this down.
   {% else %}
   Everything below reflects only the trades in <strong class="text-slate-300">this uploaded statement</strong> --
   pick "All periods (combined)" above, or see Overview, for totals across your whole history.
@@ -55,7 +58,7 @@
 {% if top_tickers %}
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
   <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-    <h3 class="text-sm font-semibold mb-3 text-slate-200">Top {{ top_tickers | length }} Winners ({{ 'all periods' if viewing_all_periods else 'this statement' }})</h3>
+    <h3 class="text-sm font-semibold mb-3 text-slate-200">Top {{ top_tickers | length }} Winners ({{ 'selected months' if selected_months else ('all periods' if viewing_all_periods else 'this statement') }})</h3>
     <ul class="divide-y divide-slate-800">
       {% for r in top_tickers %}
       <li class="flex items-center justify-between py-2 text-sm">
@@ -67,7 +70,7 @@
     </ul>
   </div>
   <div class="rounded-xl border border-slate-800 bg-slate-900 p-4">
-    <h3 class="text-sm font-semibold mb-3 text-slate-200">Bottom {{ bottom_tickers | length }} Losers ({{ 'all periods' if viewing_all_periods else 'this statement' }})</h3>
+    <h3 class="text-sm font-semibold mb-3 text-slate-200">Bottom {{ bottom_tickers | length }} Losers ({{ 'selected months' if selected_months else ('all periods' if viewing_all_periods else 'this statement') }})</h3>
     {% if not bottom_tickers %}
     <p class="text-slate-500 text-sm">Not enough distinct tickers to show a separate bottom list.</p>
     {% else %}
@@ -86,7 +89,7 @@
 {% endif %}
 
 {% if upload_monthly_series | length > 1 %}
-<h3 class="text-sm font-semibold mb-2 text-slate-200">Month-by-Month ({{ 'all periods' if viewing_all_periods else 'this statement' }})</h3>
+<h3 class="text-sm font-semibold mb-2 text-slate-200">Month-by-Month ({{ 'selected months' if selected_months else ('all periods' if viewing_all_periods else 'this statement') }})</h3>
 <div class="overflow-x-auto rounded-lg border border-slate-800 mb-6">
   <table class="min-w-full text-sm">
     <caption class="sr-only">Gain broken down by calendar month, within this upload only</caption>
@@ -112,7 +115,7 @@
 </div>
 {% endif %}
 
-<h3 class="text-sm font-semibold mb-2 text-slate-200">By Ticker ({{ 'all periods' if viewing_all_periods else 'this statement' }})</h3>
+<h3 class="text-sm font-semibold mb-2 text-slate-200">By Ticker ({{ 'selected months' if selected_months else ('all periods' if viewing_all_periods else 'this statement') }})</h3>
 <div class="overflow-x-auto rounded-lg border border-slate-800 max-h-96 overflow-y-auto">
   <table class="min-w-full text-sm">
     <caption class="sr-only">Gain broken down by ticker, biggest contributor first, within this upload only</caption>

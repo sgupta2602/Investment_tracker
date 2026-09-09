@@ -9,6 +9,7 @@ import pytest
 from starlette.testclient import TestClient
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_transactions.csv"
+MULTI_MONTH_FIXTURE = Path(__file__).parent / "fixtures" / "multi_month_transactions.csv"
 
 
 @pytest.fixture
@@ -284,6 +285,80 @@ def test_dashboard_all_periods_respects_the_account_filter(client):
     scoped_trades = int(re.search(r'<dt class="text-xs uppercase tracking-wide text-slate-500">Trades</dt>\s*<dd[^>]*>(\d+)', scoped.text).group(1))
     assert scoped_trades == combined_trades // 2
     assert 'value="all" selected' in scoped.text
+
+
+def test_months_filter_appears_only_in_all_periods_view(client):
+    """The 'Filter by month' checkboxes only make sense once you're
+    looking at combined history -- one single statement is already just
+    one narrow window, nothing to pick from."""
+    with open(MULTI_MONTH_FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Statement.csv", f, "text/csv")})
+
+    single = client.get("/dashboard/1")
+    combined = client.get("/dashboard/all")
+
+    assert "months-filter-details" not in single.text
+    assert "months-filter-details" in combined.text
+    assert "Jan 2026" in combined.text
+    assert "Mar 2026" in combined.text
+    assert "Jun 2026" in combined.text
+
+
+def test_selecting_non_contiguous_months_filters_every_scoped_tab(client):
+    """The whole point of this filter: pick Jan + Jun, skip Mar entirely,
+    and every statement-scoped tab (Trade Log, Monthly Performance,
+    Income) reflects only those two months -- not a single from/to range,
+    which couldn't express this combination."""
+    with open(MULTI_MONTH_FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Statement.csv", f, "text/csv")})
+
+    resp = client.get("/dashboard/all?months=2026-01,2026-06")
+
+    # Trade Log: Jan (JANC) and Jun (JUNC) show up, March (MARC) doesn't.
+    assert "JANC" in resp.text
+    assert "JUNC" in resp.text
+    assert "MARC" not in resp.text
+
+    # Income: Jan ($15.50) and Jun ($20.00) dividends show, March's
+    # ($99.00) is filtered out.
+    assert "$15.50" in resp.text
+    assert "$20.00" in resp.text
+    assert "$99.00" not in resp.text
+
+    # Both checkboxes come back checked, March's does not.
+    def _is_checked(month_key: str) -> bool:
+        snippet = re.search(r'value="' + month_key + r'"(.*?)>', resp.text, re.DOTALL)
+        return bool(snippet and "checked" in snippet.group(1))
+
+    assert _is_checked("2026-01")
+    assert _is_checked("2026-06")
+    assert not _is_checked("2026-03")
+
+
+def test_clearing_months_filter_restores_full_combined_history(client):
+    """Dropping the ?months= param (the 'Clear' button) must bring back
+    all three months, not leave you stuck on the last selection."""
+    with open(MULTI_MONTH_FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Statement.csv", f, "text/csv")})
+
+    filtered = client.get("/dashboard/all?months=2026-01")
+    cleared = client.get("/dashboard/all")
+
+    assert "MARC" not in filtered.text
+    assert "JANC" in cleared.text and "MARC" in cleared.text and "JUNC" in cleared.text
+
+
+def test_invalid_month_key_in_query_param_is_silently_ignored(client):
+    """A stale/bogus ?months= value (e.g. from an old bookmark after data
+    changed) shouldn't blow up or silently match everything -- it's just
+    dropped, same as picking zero real months."""
+    with open(MULTI_MONTH_FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Statement.csv", f, "text/csv")})
+
+    resp = client.get("/dashboard/all?months=1999-01,garbage")
+
+    assert resp.status_code == 200
+    assert "JANC" in resp.text and "MARC" in resp.text and "JUNC" in resp.text
 
 
 def test_logout_revokes_access(client):

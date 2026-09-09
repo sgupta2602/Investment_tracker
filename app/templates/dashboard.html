@@ -72,6 +72,43 @@
   </div>
 </div>
 
+{% if viewing_all_periods and available_months %}
+<div class="mb-4">
+  <details id="months-filter-details" {% if selected_months %}open{% endif %} class="bg-slate-900 border border-slate-700 rounded-md">
+    <summary class="cursor-pointer select-none px-3 py-2 text-sm font-medium text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded-md">
+      Filter by month
+      {% if selected_months %}
+      <span class="ml-2 text-cyan-400 font-semibold">({{ selected_months | length }} of {{ available_months | length }} selected)</span>
+      {% else %}
+      <span class="ml-2 text-slate-500">(showing all {{ available_months | length }})</span>
+      {% endif %}
+    </summary>
+    <div class="px-3 pb-3 pt-2 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-800">
+      {% for m in available_months %}
+      <label class="flex items-center gap-1.5 text-sm text-slate-300">
+        <input
+          type="checkbox"
+          class="months-filter-checkbox rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
+          value="{{ m.key }}"
+          onchange="updateMonthsFilter()"
+          {% if m.key in selected_months %}checked{% endif %}
+        >
+        {{ m.label }}
+      </label>
+      {% endfor %}
+      <button type="button" onclick="clearMonthsFilter()" class="text-sm font-semibold text-cyan-400 underline hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded ml-auto">
+        Clear (show all months)
+      </button>
+    </div>
+    <p class="px-3 pb-3 text-xs text-slate-500">
+      Pick any combination of months (they don't need to be consecutive) --
+      applies to Trade Log, Monthly Performance, Gains/Losses/Tax, Income, and
+      Transfers. Needs Review always shows your full current book regardless.
+    </p>
+  </details>
+</div>
+{% endif %}
+
 <div role="tablist" aria-label="Report sections" class="flex flex-wrap gap-2 border-b border-slate-800 mb-4">
   <button type="button" role="tab" id="tab-btn-log" aria-controls="tab-log" aria-selected="true"
     class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-cyan-500 text-cyan-400"
@@ -150,7 +187,40 @@
       uploadId = "all";
     }
 
-    window.location = "/dashboard/" + uploadId + (account ? "?account=" + encodeURIComponent(account) : "");
+    window.location = "/dashboard/" + uploadId + buildQuery(account, uploadId);
+  }
+
+  function buildQuery(account, uploadId) {
+    const params = new URLSearchParams();
+    if (account) params.set("account", account);
+    if (uploadId === "all") {
+      // The month filter only applies to "All periods" -- carry it along
+      // when switching Account while staying there, but drop it the
+      // moment you land on one specific statement (nothing to slice).
+      const currentMonths = new URLSearchParams(window.location.search).get("months");
+      if (currentMonths) params.set("months", currentMonths);
+    }
+    const query = params.toString();
+    return query ? "?" + query : "";
+  }
+
+  function updateMonthsFilter() {
+    const checked = Array.from(document.querySelectorAll(".months-filter-checkbox:checked")).map((cb) => cb.value);
+    const params = new URLSearchParams(window.location.search);
+    if (checked.length) {
+      params.set("months", checked.join(","));
+    } else {
+      params.delete("months");
+    }
+    const query = params.toString();
+    window.location = "/dashboard/all" + (query ? "?" + query : "");
+  }
+
+  function clearMonthsFilter() {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("months");
+    const query = params.toString();
+    window.location = "/dashboard/all" + (query ? "?" + query : "");
   }
 
   function syncUploadOptionsToAccount() {

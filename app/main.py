@@ -28,7 +28,9 @@ from app.parsing import extract_account_label, parse_transactions_csv
 from app.quotes import random_quote
 from app.transfers import filter_transfer_events
 from app.summary import (
+    available_year_months,
     cumulative_gain_series,
+    filter_by_months,
     gains_losses_by_term,
     monthly_performance,
     performance_by_month,
@@ -344,16 +346,46 @@ def dashboard(request: Request, upload_id: str):
 
     all_trades = _scoped(all_trades_unfiltered)
     if viewing_all_periods:
-        month_trades = all_trades
-        cash_events = _scoped(repo.load_all_income_events())
+        unfiltered_month_trades = all_trades
+        unfiltered_cash_events = _scoped(repo.load_all_income_events())
     else:
-        month_trades = _scoped(repo.load_closed_trades_for_upload(current_upload_id))
-        cash_events = _scoped(repo.load_income_events_for_upload(current_upload_id))
+        unfiltered_month_trades = _scoped(repo.load_closed_trades_for_upload(current_upload_id))
+        unfiltered_cash_events = _scoped(repo.load_income_events_for_upload(current_upload_id))
+
+    # "Filter to specific months" checkboxes -- only meaningful in "All
+    # periods (combined)" view (a single statement is already just one
+    # narrow window, nothing to pick from). Deliberately a pick-list, not
+    # a from/to range: someone comparing Q1 vs Q3 needs Jan+Feb+Mar plus
+    # Jul+Aug+Sep with May/Jun excluded, which a single contiguous range
+    # (like Trade Log's own date filter) can't express.
+    available_months = available_year_months(unfiltered_month_trades, unfiltered_cash_events) if viewing_all_periods else []
+    selected_months: set[str] = set()
+    if viewing_all_periods:
+        months_param = request.query_params.get("months") or ""
+        valid_keys = {m["key"] for m in available_months}
+        selected_months = {m for m in months_param.split(",") if m in valid_keys}
+
+    if selected_months:
+        # Applied to Trade Log too (all_trades), not just the
+        # statement-scoped tabs -- that's the whole point of this filter
+        # existing. Running totals/cumulative columns in Trade Log still
+        # reflect true full-history position (computed once at rebuild
+        # time); only which rows are shown changes, same principle as its
+        # existing client-side ticker/date filters.
+        all_trades = filter_by_months(all_trades, "sell_date", selected_months)
+        month_trades = filter_by_months(unfiltered_month_trades, "sell_date", selected_months)
+        cash_events = filter_by_months(unfiltered_cash_events, "date", selected_months)
+    else:
+        month_trades = unfiltered_month_trades
+        cash_events = unfiltered_cash_events
     income_events = filter_income_events(cash_events)
     transfer_events = filter_transfer_events(cash_events)
 
     # Recomputed fresh (cheap at personal data volumes) so "needs review"
-    # always reflects current book state, not a stale snapshot.
+    # always reflects current book state, not a stale snapshot. Never
+    # month-filtered -- open positions have no sell_date to filter by, and
+    # "what needs my attention" should always mean the full current book,
+    # not just a performance-analysis window.
     match_result = match_transactions(repo.load_all_transactions())
     open_positions = _scoped(match_result.open_positions)
     unmatched_closes = _scoped(match_result.unmatched_closes)
@@ -371,6 +403,8 @@ def dashboard(request: Request, upload_id: str):
             "grouped_uploads": grouped_uploads,
             "current_upload_id": current_upload_id,
             "viewing_all_periods": viewing_all_periods,
+            "available_months": available_months,
+            "selected_months": selected_months,
             "all_trades": all_trades,
             "accounts": accounts,
             "selected_account": selected_account,

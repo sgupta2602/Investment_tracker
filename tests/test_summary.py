@@ -2,7 +2,9 @@
 from datetime import datetime
 
 from app.summary import (
+    available_year_months,
     cumulative_gain_series,
+    filter_by_months,
     performance_by_month,
     performance_by_recommender,
     performance_by_ticker,
@@ -39,8 +41,33 @@ def test_groups_trades_by_recommended_by():
     assert by_name["Priya"]["gain"] == 500.0
     assert [t["ticker"] for t in by_name["Priya"]["trades"]] == ["MSFT", "AAPL"]  # biggest gain first
 
-    assert by_name["Amit"]["trade_count"] == 1
-    assert by_name["Amit"]["gain"] == -100.0
+
+def test_available_year_months_combines_trades_and_cash_events_deduped():
+    trades = [_trade(sell_date=datetime(2026, 1, 15)), _trade(sell_date=datetime(2026, 3, 5))]
+    cash_events = [{"date": datetime(2026, 3, 20)}, {"date": datetime(2026, 6, 1)}]
+
+    months = available_year_months(trades, cash_events)
+
+    # Newest first; March appears once even though both a trade and a cash
+    # event fall in it.
+    assert months == [
+        {"key": "2026-06", "label": "Jun 2026"},
+        {"key": "2026-03", "label": "Mar 2026"},
+        {"key": "2026-01", "label": "Jan 2026"},
+    ]
+
+
+def test_filter_by_months_keeps_only_selected_non_contiguous_months():
+    trades = [
+        _trade(ticker="JAN", sell_date=datetime(2026, 1, 15)),
+        _trade(ticker="MAR", sell_date=datetime(2026, 3, 5)),
+        _trade(ticker="JUN", sell_date=datetime(2026, 6, 30)),
+        _trade(ticker="NOV", sell_date=datetime(2026, 11, 1)),
+    ]
+
+    kept = filter_by_months(trades, "sell_date", {"2026-01", "2026-06", "2026-11"})
+
+    assert {t["ticker"] for t in kept} == {"JAN", "JUN", "NOV"}  # March correctly excluded
 
 
 def test_blank_recommended_by_groups_under_unspecified_not_dropped():

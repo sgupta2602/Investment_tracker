@@ -1,6 +1,13 @@
-<h2 class="text-lg font-bold mb-3 text-slate-100">Trade Log (full history, running totals)</h2>
+<h2 class="text-lg font-bold mb-3 text-slate-100">
+  Trade Log
+  {% if selected_months %}
+  ({{ selected_months | length }} month{{ 's' if selected_months | length != 1 }} selected, running totals)
+  {% else %}
+  (full history, running totals)
+  {% endif %}
+</h2>
 {% if not all_trades %}
-<p class="text-slate-400 text-sm">No closed trades yet -- upload a statement to get started.</p>
+<p class="text-slate-400 text-sm">No closed trades{{ ' in the selected months' if selected_months else ' yet -- upload a statement to get started' }}.</p>
 {% else %}
 <div class="flex flex-wrap items-end gap-3 mb-3">
   <div>

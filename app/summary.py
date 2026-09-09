@@ -176,6 +176,34 @@ def top_bottom_tickers(ticker_rows: list[dict], n: int = 5) -> tuple[list[dict],
     return top, bottom
 
 
+def available_year_months(trades: list[dict], cash_events: list[dict]) -> list[dict]:
+    """Every distinct calendar month (year + month) present in either the
+    closed trades' sell_date or the cash events' date -- powers the
+    dashboard's 'Filter to specific months' checkboxes, shown only in
+    'All periods (combined)' view. Combines both sources so a month with
+    income/transfers but no closed trades (or vice versa) still shows up
+    as a real, selectable option. Newest month first, matching how
+    uploads are already sorted elsewhere in this app."""
+    keys = {t["sell_date"].strftime("%Y-%m") for t in trades}
+    keys |= {e["date"].strftime("%Y-%m") for e in cash_events}
+    return [
+        {"key": key, "label": datetime.strptime(key, "%Y-%m").strftime("%b %Y")}
+        for key in sorted(keys, reverse=True)
+    ]
+
+
+def filter_by_months(items: list[dict], date_field: str, selected_keys: set[str]) -> list[dict]:
+    """Restricts trades or cash events to just the calendar months in
+    selected_keys (each a 'YYYY-MM' string) -- the backing filter for the
+    dashboard's month checkboxes. Deliberately supports a non-contiguous
+    pick-list (e.g. Jan + Jun + Nov), not just a single from/to range --
+    that's the whole reason this exists instead of reusing Trade Log's
+    existing date-range filter. Empty selected_keys means 'no filter,
+    show everything'; callers should only invoke this once at least one
+    month is actually selected."""
+    return [item for item in items if item[date_field].strftime("%Y-%m") in selected_keys]
+
+
 def performance_by_recommender(trades: list[dict]) -> list[dict]:
     """Groups closed trades by the Trade Log's 'Recommended By' field so
     Overview can answer 'who told me about this stock, and how much did
