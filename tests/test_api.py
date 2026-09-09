@@ -246,6 +246,27 @@ def test_upload_page_always_reachable_even_after_data_exists(client):
     assert "Upload your broker transaction CSV" in resp.text
 
 
+def test_upload_form_caps_recent_uploads_and_links_to_overview_for_the_rest(client):
+    """Uploading a statement every month across a couple of accounts
+    would turn this page into a long scroll if every upload rendered
+    inline -- only the most recent RECENT_UPLOADS_ON_FORM should show,
+    with a link out to the Overview page for the complete list."""
+    import app.main as main_module
+
+    limit = main_module.RECENT_UPLOADS_ON_FORM
+    total = limit + 2
+    for i in range(total):
+        # Distinct masked account per upload so none of these are
+        # treated as duplicates of each other and skipped.
+        with open(FIXTURE, "rb") as f:
+            client.post("/upload", files={"file": (f"Statement_XX{i}00_Transactions.csv", f, "text/csv")})
+
+    resp = client.get("/upload")
+    assert resp.text.count("/dashboard/") == limit
+    assert f"most recent {limit} of {total}" in resp.text
+    assert f"View all {total} statements" in resp.text
+
+
 def test_overview_shows_performance_charts_after_upload(client):
     with open(FIXTURE, "rb") as f:
         client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})

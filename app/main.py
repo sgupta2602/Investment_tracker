@@ -142,8 +142,15 @@ def logout(request: Request):
 def home(request: Request):
     uploads = repo.list_uploads()
     if not uploads:
-        return templates.TemplateResponse(request, "upload.html", {"uploads": uploads})
+        return templates.TemplateResponse(request, "upload.html", {"uploads": uploads, "total_upload_count": 0})
     return RedirectResponse(url="/overview")
+
+
+# How many of the most recent uploads to show inline on the upload form
+# itself -- past this, uploading monthly across a couple of accounts
+# would turn this page into a long scroll. The full list (with account
+# grouping and delete) always lives on the Overview page.
+RECENT_UPLOADS_ON_FORM = 5
 
 
 @app.get("/upload")
@@ -152,11 +159,13 @@ def upload_form(request: Request):
     data exists, there's still a real way back here to add another
     month's statement (previously this was a dead loop)."""
     all_duplicate = request.query_params.get("all_duplicate")
+    uploads = repo.list_uploads()
     return templates.TemplateResponse(
         request,
         "upload.html",
         {
-            "uploads": repo.list_uploads(),
+            "uploads": uploads[:RECENT_UPLOADS_ON_FORM],
+            "total_upload_count": len(uploads),
             "all_duplicate_skipped": int(all_duplicate) if all_duplicate else None,
         },
     )

@@ -38,12 +38,17 @@
 
   {% if uploads %}
   <div class="mt-8 border-t border-slate-800 pt-4">
-    <h3 class="text-sm font-bold mb-2 text-slate-300">Previous uploads</h3>
+    <h3 class="text-sm font-bold mb-2 text-slate-300">
+      Recent uploads
+      {% if total_upload_count > uploads | length %}
+      <span class="font-normal text-slate-500">(most recent {{ uploads | length }} of {{ total_upload_count }})</span>
+      {% endif %}
+    </h3>
     <ul class="text-sm space-y-1">
       {% for u in uploads %}
       <li class="flex items-center justify-between gap-3">
-        <a class="text-cyan-400 font-semibold underline hover:text-cyan-300" href="/dashboard/{{ u.id }}">
-          {{ u.filename }} ({{ u.account or "unknown account" }})
+        <a class="text-cyan-400 font-semibold underline hover:text-cyan-300" href="/dashboard/{{ u.id }}" title="{{ u.filename }}">
+          {{ u.period_label }} <span class="text-slate-500 font-normal">({{ u.account or "unknown account" }})</span>
         </a>
         <form action="/delete_upload/{{ u.id }}" method="post"
               onsubmit="return confirm('Delete {{ u.filename }}? This cannot be undone.');">
@@ -55,7 +60,11 @@
       {% endfor %}
     </ul>
     <a href="/overview" class="inline-block mt-3 text-sm font-semibold text-cyan-400 underline hover:text-cyan-300">
+      {% if total_upload_count > uploads | length %}
+      View all {{ total_upload_count }} statements &amp; manage by account &rarr;
+      {% else %}
       View Performance Overview
+      {% endif %}
     </a>
   </div>
   {% endif %}
