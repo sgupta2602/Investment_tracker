@@ -3,21 +3,6 @@
 <p class="text-slate-400 text-sm">No closed trades yet -- upload a statement to get started.</p>
 {% else %}
 <div class="flex flex-wrap items-end gap-3 mb-3">
-  {% if accounts | length > 1 %}
-  <div>
-    <label for="account-filter" class="block text-xs font-semibold text-slate-400 mb-1">Account</label>
-    <select
-      id="account-filter"
-      onchange="filterTradeLog()"
-      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-    >
-      <option value="">All accounts</option>
-      {% for acct in accounts %}
-      <option value="{{ acct|lower }}">{{ acct }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  {% endif %}
   <div>
     <label for="ticker-search" class="block text-xs font-semibold text-slate-400 mb-1">Search ticker</label>
     <input
@@ -89,7 +74,6 @@
       {% for t in all_trades %}
       <tr
         data-ticker="{{ t.ticker|lower }}"
-        data-account="{{ (t.account or '')|lower }}"
         data-sell-date="{{ t.sell_date.strftime('%Y-%m-%d') }}"
         class="border-t border-slate-800 hover:bg-slate-800/50 {% if t.upload_id == current_upload_id %}bg-cyan-950/40{% endif %}"
       >
@@ -169,16 +153,13 @@
     const search = document.getElementById("ticker-search").value.trim().toLowerCase();
     const from = document.getElementById("date-from").value;
     const to = document.getElementById("date-to").value;
-    const accountFilter = document.getElementById("account-filter");
-    const account = accountFilter ? accountFilter.value : "";
     const rows = document.querySelectorAll("#trade-log-body tr[data-ticker]");
     let visible = 0;
     rows.forEach((row) => {
       const matchesTicker = !search || row.dataset.ticker.includes(search);
-      const matchesAccount = !account || row.dataset.account === account;
       const matchesFrom = !from || row.dataset.sellDate >= from;
       const matchesTo = !to || row.dataset.sellDate <= to;
-      const show = matchesTicker && matchesAccount && matchesFrom && matchesTo;
+      const show = matchesTicker && matchesFrom && matchesTo;
       row.hidden = !show;
       if (show) visible++;
     });
@@ -191,8 +172,6 @@
     document.getElementById("ticker-search").value = "";
     document.getElementById("date-from").value = "";
     document.getElementById("date-to").value = "";
-    const accountFilter = document.getElementById("account-filter");
-    if (accountFilter) accountFilter.value = "";
     filterTradeLog();
   }
 

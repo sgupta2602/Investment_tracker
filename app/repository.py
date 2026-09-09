@@ -297,9 +297,15 @@ def save_income_events(upload_id: int, events: list[dict]) -> None:
 
 
 def load_income_events_for_upload(upload_id: int) -> list[dict]:
+    """Joins through uploads for account -- income_events itself has no
+    account column (see db.py), since account lives at the statement
+    level, not per-row."""
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM income_events WHERE upload_id = ? ORDER BY event_date",
+            """SELECT ie.*, u.account AS account
+               FROM income_events ie
+               JOIN uploads u ON u.id = ie.upload_id
+               WHERE ie.upload_id = ? ORDER BY ie.event_date""",
             (upload_id,),
         ).fetchall()
         return [_row_to_income_dict(r) for r in rows]
@@ -308,7 +314,10 @@ def load_income_events_for_upload(upload_id: int) -> list[dict]:
 def load_all_income_events() -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM income_events ORDER BY event_date"
+            """SELECT ie.*, u.account AS account
+               FROM income_events ie
+               JOIN uploads u ON u.id = ie.upload_id
+               ORDER BY ie.event_date"""
         ).fetchall()
         return [_row_to_income_dict(r) for r in rows]
 

@@ -12,6 +12,7 @@
     <caption class="sr-only">Positions that closed without a matching opening transaction in the uploaded data</caption>
     <thead class="bg-amber-500/10 text-amber-300">
       <tr>
+        {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
         <th scope="col" class="px-3 py-2 text-left">Close Date</th>
         <th scope="col" class="px-3 py-2 text-left">Ticker</th>
         <th scope="col" class="px-3 py-2 text-left">Expiration</th>
@@ -24,6 +25,7 @@
     <tbody class="bg-slate-900">
       {% for u in unmatched_closes %}
       <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+        {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ u.account }}</td>{% endif %}
         <td class="px-3 py-1 text-slate-300">{{ u.date.strftime('%m/%d/%Y') }}</td>
         <td class="px-3 py-1 font-medium text-slate-100">{{ u.ticker }}{% set is_adj = u.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
         <td class="px-3 py-1 text-slate-300">{{ u.expiration.strftime('%m/%d/%Y') if u.expiration else '--' }}</td>
@@ -51,6 +53,7 @@
     <caption class="sr-only">Positions opened but not yet closed</caption>
     <thead class="bg-slate-800 text-slate-200">
       <tr>
+        {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
         <th scope="col" class="px-3 py-2 text-left">Ticker</th>
         <th scope="col" class="px-3 py-2 text-left">Open Date</th>
         <th scope="col" class="px-3 py-2 text-left">Expiration</th>
@@ -64,6 +67,7 @@
     <tbody class="bg-slate-900">
       {% for p in open_positions %}
       <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+        {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ p.account }}</td>{% endif %}
         <td class="px-3 py-1 font-medium text-slate-100">{{ p.ticker }}{% set is_adj = p.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
         <td class="px-3 py-1 text-slate-300">{{ p.open_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-3 py-1 text-slate-300">{{ p.expiration.strftime('%m/%d/%Y') if p.expiration else '--' }}</td>
@@ -77,7 +81,7 @@
     </tbody>
     <tfoot>
       <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
-        <td colspan="6" class="px-3 py-2 text-right text-slate-300">Total money at stake in open positions</td>
+        <td colspan="{{ 7 if accounts|length > 1 else 6 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake in open positions</td>
         <td class="px-3 py-2 text-right text-amber-300">{{ open_positions_cost_value | usd }}</td>
       </tr>
     </tfoot>

@@ -91,23 +91,46 @@ def test_account_filter_hidden_with_only_one_account(client):
         dashboard = client.post(
             "/upload", files={"file": ("sample_transactions.csv", f, "text/csv")}
         )
-    assert 'id="account-filter"' not in dashboard.text
+    assert 'id="account-select"' not in dashboard.text
 
 
 def test_account_filter_appears_and_lists_distinct_accounts_when_multiple(client):
     """Two statements from two different (masked) account numbers must
-    both show up as filter options, and each trade row must be tagged
-    with the right account so the client-side filter can match on it."""
+    both show up as filter options in the global Account dropdown."""
     with open(FIXTURE, "rb") as f:
         client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
     with open(FIXTURE, "rb") as f:
         dashboard = client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
 
-    assert 'id="account-filter"' in dashboard.text
-    assert '<option value="xx111">XX111</option>' in dashboard.text
-    assert '<option value="xx222">XX222</option>' in dashboard.text
-    assert 'data-account="xx111"' in dashboard.text
-    assert 'data-account="xx222"' in dashboard.text
+    assert 'id="account-select"' in dashboard.text
+    assert '<option value="XX111" >XX111</option>' in dashboard.text
+    assert '<option value="XX222" >XX222</option>' in dashboard.text
+
+
+def test_selecting_an_account_scopes_every_tab_to_just_that_account(client):
+    """The whole point of the global filter: picking Account=XX111 on the
+    dashboard URL must narrow Trade Log, Needs Review, and Income/Transfers
+    down to just that account's rows -- not merely hide some table rows
+    client-side while leaving everything else showing the combined book."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        upload2 = client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
+
+    # TestClient follows redirects, so pull the current upload's id off the rendered <select>.
+    upload_id = re.search(r'value="(\d+)" selected', upload2.text).group(1)
+
+    combined = client.get(f"/dashboard/{upload_id}")
+    scoped = client.get(f"/dashboard/{upload_id}?account=XX111")
+
+    assert '<td class="px-2 py-1 text-slate-300">XX222</td>' in combined.text
+    assert '<td class="px-2 py-1 text-slate-300">XX222</td>' not in scoped.text
+    assert '<td class="px-2 py-1 text-slate-300">XX111</td>' in scoped.text
+    # The Account dropdown itself must still offer XX222 even while scoped
+    # to XX111 -- switching back and forth has to stay possible.
+    assert '<option value="XX222"' in scoped.text
+    # And the currently active filter must show as selected in that dropdown.
+    assert '<option value="XX111" selected>XX111</option>' in scoped.text
 
 
 def test_logout_revokes_access(client):

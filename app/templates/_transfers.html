@@ -28,6 +28,7 @@
     <caption class="sr-only">Transfer events for this upload</caption>
     <thead class="bg-slate-800 text-slate-200">
       <tr>
+        {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
         <th scope="col" class="px-3 py-2 text-left">Date</th>
         <th scope="col" class="px-3 py-2 text-left">Action</th>
         <th scope="col" class="px-3 py-2 text-left">Symbol</th>
@@ -38,6 +39,7 @@
     <tbody class="bg-slate-900" id="transfer-events-body">
       {% for e in transfer_events %}
       <tr class="border-t border-slate-800 hover:bg-slate-800/50" data-label="{{ e.label }}">
+        {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ e.account }}</td>{% endif %}
         <td class="px-3 py-1 text-slate-300">{{ e.date.strftime('%m/%d/%Y') }}</td>
         <td class="px-3 py-1 text-slate-300">{{ e.label }}</td>
         <td class="px-3 py-1 text-slate-300">{{ e.symbol }}</td>
