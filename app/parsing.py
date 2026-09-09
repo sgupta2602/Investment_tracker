@@ -36,14 +36,25 @@ CLOSING_ACTIONS = {"Sell to Close", "Expired"}
 # internal transfer to/from another brokerage account, e.g. a family
 # member's) -- see income.py's DISPLAY_LABELS for the friendlier names
 # shown on the Income tab.
+# Actual income -- dividends and fees. Shown on the Income tab.
 INCOME_ACTIONS = {
     "Cash Dividend",
     "Qualified Dividend",
     "ADR Mgmt Fee",
     "Foreign Tax Paid",
+}
+# Cash MOVEMENTS in/out of this account, not income -- a linked-bank
+# transfer (MoneyLink) or a transfer to/from a different brokerage
+# account (Journal). Shown on their own Transfers tab, not Income.
+TRANSFER_ACTIONS = {
     "MoneyLink Transfer",
     "Journal",
 }
+# Both income and transfers are pulled from the broker CSV and
+# persisted the same way (see income.extract_cash_events) since they're
+# both non-trade cash events with an identical shape -- they're only
+# split apart into separate tabs at display time.
+CASH_EVENT_ACTIONS = INCOME_ACTIONS | TRANSFER_ACTIONS
 
 
 @dataclass

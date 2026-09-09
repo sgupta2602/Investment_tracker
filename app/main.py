@@ -19,11 +19,12 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app import repository as repo
 from app.db import init_db
-from app.income import extract_income_events, income_totals
+from app.income import event_totals, extract_cash_events, filter_income_events
 from app.calc import LONG_TERM_RATE, LONG_TERM_THRESHOLD_DAYS, SHORT_TERM_RATE, enrich_trades
 from app.matching import OPTION_MULTIPLIER, match_transactions
 from app.parsing import extract_account_label, parse_transactions_csv
 from app.quotes import random_quote
+from app.transfers import filter_transfer_events
 from app.summary import (
     gains_losses_by_term,
     monthly_performance,
@@ -192,8 +193,8 @@ async def upload_csv(file: UploadFile = File(...)):
         t.upload_id = upload_id
     repo.save_raw_transactions(upload_id, new_transactions)
 
-    income_events = extract_income_events(new_transactions)
-    repo.save_income_events(upload_id, income_events)
+    cash_events = extract_cash_events(new_transactions)
+    repo.save_income_events(upload_id, cash_events)
 
     _rebuild_closed_trades()
 
@@ -269,7 +270,9 @@ def dashboard(request: Request, upload_id: int):
     uploads = repo.list_uploads()
     all_trades = repo.load_all_closed_trades()
     month_trades = repo.load_closed_trades_for_upload(upload_id)
-    income_events = repo.load_income_events_for_upload(upload_id)
+    cash_events = repo.load_income_events_for_upload(upload_id)
+    income_events = filter_income_events(cash_events)
+    transfer_events = filter_transfer_events(cash_events)
 
     # Recomputed fresh (cheap at personal data volumes) so "needs review"
     # always reflects current book state, not a stale snapshot.
@@ -299,7 +302,9 @@ def dashboard(request: Request, upload_id: int):
             "upload_monthly_series": performance_by_month(month_trades),
             "term_breakdown": gains_losses_by_term(month_trades),
             "income_events": income_events,
-            "income_totals": income_totals(income_events),
+            "income_totals": event_totals(income_events),
+            "transfer_events": transfer_events,
+            "transfer_totals": event_totals(transfer_events),
             "unmatched_closes": match_result.unmatched_closes,
             "open_positions": match_result.open_positions,
             "open_positions_cost_value": sum(

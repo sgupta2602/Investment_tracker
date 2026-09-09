@@ -53,6 +53,9 @@
   <button type="button" role="tab" id="tab-btn-income" aria-controls="tab-income" aria-selected="false"
     class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-400 hover:text-slate-200"
     onclick="showTab('income')">Income</button>
+  <button type="button" role="tab" id="tab-btn-transfers" aria-controls="tab-transfers" aria-selected="false"
+    class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-400 hover:text-slate-200"
+    onclick="showTab('transfers')">Transfers</button>
   <button type="button" role="tab" id="tab-btn-review" aria-controls="tab-review" aria-selected="false"
     class="tab-btn px-4 py-2 text-sm font-semibold border-b-4 border-transparent text-slate-400 hover:text-slate-200"
     onclick="showTab('review')">
@@ -77,13 +80,17 @@
   {% include "_income.html" %}
 </section>
 
+<section id="tab-transfers" role="tabpanel" aria-labelledby="tab-btn-transfers" hidden>
+  {% include "_transfers.html" %}
+</section>
+
 <section id="tab-review" role="tabpanel" aria-labelledby="tab-btn-review" hidden>
   {% include "_review.html" %}
 </section>
 
 <script>
   function showTab(name) {
-    const panels = ["log", "perf", "tax", "income", "review"];
+    const panels = ["log", "perf", "tax", "income", "transfers", "review"];
     panels.forEach((p) => {
       const panel = document.getElementById("tab-" + p);
       const btn = document.getElementById("tab-btn-" + p);

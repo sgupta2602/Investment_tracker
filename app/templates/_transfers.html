@@ -1,29 +1,31 @@
-<h2 class="text-lg font-bold mb-3 text-slate-100">Income (dividends, fees)</h2>
+<h2 class="text-lg font-bold mb-3 text-slate-100">Transfers (money moving in/out of this account)</h2>
 <p class="text-xs text-slate-500 mb-3">
-  These never feed into the gain/loss or tax numbers above -- shown here for context only.
+  Cash MOVEMENTS, not income -- a Withdrawal/Deposit went to or came from your linked bank
+  account; a Journal Transfer went to or came from a different brokerage account. Neither
+  feeds into the gain/loss or tax numbers above.
   Click a card below to filter the table to just that type; click it again (or "Total") to clear.
 </p>
-{% if not income_events %}
-<p class="text-slate-400 text-sm">No income events in this upload.</p>
+{% if not transfer_events %}
+<p class="text-slate-400 text-sm">No transfers in this upload.</p>
 {% else %}
-<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4" id="income-filter-cards">
-  {% for label, amount in income_totals.items() %}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4" id="transfer-filter-cards">
+  {% for label, amount in transfer_totals.items() %}
   <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 border-l-4 cursor-pointer transition hover:border-l-cyan-500 {{ 'border-l-emerald-500' if amount >= 0 else 'border-l-rose-500' }}"
        data-filter-label="{{ label }}"
        role="button"
        tabindex="0"
        aria-pressed="false"
-       onclick="filterIncomeByLabel('{{ label }}')"
-       onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); filterIncomeByLabel('{{ label }}'); }">
+       onclick="filterTransferByLabel('{{ label }}')"
+       onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); filterTransferByLabel('{{ label }}'); }">
     <dt class="text-xs uppercase text-slate-500">{{ label }}</dt>
     <dd class="text-lg font-semibold {{ 'text-emerald-400' if amount >= 0 else 'text-rose-400' }}">{{ amount | usd }}</dd>
   </div>
   {% endfor %}
 </div>
-<p id="income-filter-status" class="text-xs text-slate-500 mb-2"></p>
+<p id="transfer-filter-status" class="text-xs text-slate-500 mb-2"></p>
 <div class="overflow-x-auto rounded-lg border border-slate-800">
   <table class="min-w-full text-sm">
-    <caption class="sr-only">Dividend and fee events for this upload</caption>
+    <caption class="sr-only">Transfer events for this upload</caption>
     <thead class="bg-slate-800 text-slate-200">
       <tr>
         <th scope="col" class="px-3 py-2 text-left">Date</th>
@@ -33,8 +35,8 @@
         <th scope="col" class="px-3 py-2 text-right">Amount</th>
       </tr>
     </thead>
-    <tbody class="bg-slate-900" id="income-events-body">
-      {% for e in income_events %}
+    <tbody class="bg-slate-900" id="transfer-events-body">
+      {% for e in transfer_events %}
       <tr class="border-t border-slate-800 hover:bg-slate-800/50" data-label="{{ e.label }}">
         <td class="px-3 py-1 text-slate-300">{{ e.date.strftime('%m/%d/%Y') }}</td>
         <td class="px-3 py-1 text-slate-300">{{ e.label }}</td>
@@ -48,32 +50,32 @@
 </div>
 
 <script>
-  let incomeActiveFilter = null;
+  let transferActiveFilter = null;
 
-  function filterIncomeByLabel(label) {
-    incomeActiveFilter = (incomeActiveFilter === label || label === "Total") ? null : label;
+  function filterTransferByLabel(label) {
+    transferActiveFilter = (transferActiveFilter === label || label === "Total") ? null : label;
 
-    const rows = document.querySelectorAll("#income-events-body tr[data-label]");
+    const rows = document.querySelectorAll("#transfer-events-body tr[data-label]");
     let visible = 0;
     rows.forEach((row) => {
-      const show = !incomeActiveFilter || row.dataset.label === incomeActiveFilter;
+      const show = !transferActiveFilter || row.dataset.label === transferActiveFilter;
       row.hidden = !show;
       if (show) visible++;
     });
 
-    document.querySelectorAll("#income-filter-cards [data-filter-label]").forEach((card) => {
-      const isActive = incomeActiveFilter && card.dataset.filterLabel === incomeActiveFilter;
+    document.querySelectorAll("#transfer-filter-cards [data-filter-label]").forEach((card) => {
+      const isActive = transferActiveFilter && card.dataset.filterLabel === transferActiveFilter;
       card.classList.toggle("ring-2", isActive);
       card.classList.toggle("ring-cyan-500", isActive);
       card.setAttribute("aria-pressed", String(Boolean(isActive)));
     });
 
-    const status = document.getElementById("income-filter-status");
-    status.textContent = incomeActiveFilter
-      ? `Showing ${visible} of ${rows.length} events -- filtered to "${incomeActiveFilter}"`
+    const status = document.getElementById("transfer-filter-status");
+    status.textContent = transferActiveFilter
+      ? `Showing ${visible} of ${rows.length} events -- filtered to "${transferActiveFilter}"`
       : `Showing all ${rows.length} events`;
   }
 
-  filterIncomeByLabel(null);
+  filterTransferByLabel(null);
 </script>
 {% endif %}

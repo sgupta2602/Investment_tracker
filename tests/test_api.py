@@ -146,6 +146,43 @@ def test_income_cards_are_clickable_filters_over_the_events_table(client):
     assert 'id="income-filter-status"' in resp.text
 
 
+def test_withdrawal_and_journal_transfer_are_on_transfers_tab_not_income(client):
+    """The whole point of splitting these into their own tab: Withdrawal
+    and Journal Transfer must render on the Transfers panel, and must
+    NOT appear anywhere on the Income panel."""
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/05/2026","Cash Dividend","","DIVIDEND","","","","$12.50"\n'
+        '"01/10/2026","MoneyLink Transfer","","TRANSFER TO BANK","","","","-$2500.00"\n'
+        '"01/15/2026","Journal","","JOURNAL TO ...556","","","","-$1000.00"\n'
+    )
+    resp = client.post("/upload", files={"file": ("transfers.csv", csv_content, "text/csv")})
+
+    # Extract just the Income panel's markup so a match doesn't leak in
+    # from the Transfers panel sitting elsewhere on the same page.
+    income_panel = re.search(r'id="tab-income".*?id="tab-transfers"', resp.text, re.S).group(0)
+    assert "Cash Dividend" in income_panel
+    assert "Withdrawal" not in income_panel
+    assert "Journal Transfer" not in income_panel
+
+    transfers_panel = re.search(r'id="tab-transfers".*?id="tab-review"', resp.text, re.S).group(0)
+    assert "Withdrawal" in transfers_panel
+    assert "Journal Transfer (to Another Account)" in transfers_panel
+    assert "Cash Dividend" not in transfers_panel
+
+
+def test_transfer_cards_are_clickable_filters_over_the_events_table(client):
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/10/2026","MoneyLink Transfer","","TRANSFER TO BANK","","","","-$2500.00"\n'
+    )
+    resp = client.post("/upload", files={"file": ("transfers.csv", csv_content, "text/csv")})
+    assert 'data-filter-label="Withdrawal"' in resp.text
+    assert 'data-label="Withdrawal"' in resp.text
+    assert "filterTransferByLabel" in resp.text
+    assert 'id="transfer-filter-status"' in resp.text
+
+
 def test_trade_log_rows_carry_search_and_date_filter_attributes(client):
     """The ticker search + date range filter are pure client-side JS over
     these data attributes -- if they're missing/wrong, filtering silently
