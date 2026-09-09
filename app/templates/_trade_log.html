@@ -45,6 +45,7 @@
     <caption class="sr-only">Closed trades with realized gain/loss, holding period, and cumulative totals -- filterable by ticker and sell date</caption>
     <thead class="bg-slate-800 text-slate-200">
       <tr>
+        <th scope="col" class="px-2 py-2 text-right">#</th>
         <th scope="col" class="px-2 py-2 text-left">Account</th>
         <th scope="col" class="px-2 py-2 text-left">Sell Date</th>
         <th scope="col" class="px-2 py-2 text-left">Ticker</th>
@@ -77,6 +78,7 @@
         data-sell-date="{{ t.sell_date.strftime('%Y-%m-%d') }}"
         class="border-t border-slate-800 hover:bg-slate-800/50 {% if t.upload_id == current_upload_id %}bg-cyan-950/40{% endif %}"
       >
+        <td class="px-2 py-1 text-right text-slate-500">{{ loop.index }}</td>
         <td class="px-2 py-1 text-slate-300">{{ t.account }}</td>
         <td class="px-2 py-1 text-slate-300">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-2 py-1 font-medium text-slate-100">
@@ -119,7 +121,7 @@
       </tr>
       {% endfor %}
       <tr id="trade-log-empty-row" hidden>
-        <td colspan="23" class="px-2 py-4 text-center text-slate-400">No trades match your filters.</td>
+        <td colspan="24" class="px-2 py-4 text-center text-slate-400">No trades match your filters.</td>
       </tr>
     </tbody>
   </table>

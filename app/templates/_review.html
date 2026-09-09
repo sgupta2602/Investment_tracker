@@ -3,7 +3,7 @@
   These reflect gaps across your uploaded statements as a whole -- not just the period selected above.
 </p>
 
-<h3 class="text-sm font-semibold mb-2 text-slate-200">Closed positions missing an opening trade</h3>
+<h3 class="text-sm font-semibold mb-2 text-slate-200">Closed positions missing an opening trade <span class="text-slate-500 font-normal">({{ unmatched_closes | length }})</span></h3>
 {% if not unmatched_closes %}
 <p class="text-slate-400 text-sm mb-4">None -- every closed position matched to an opening trade in your uploads.</p>
 {% else %}
@@ -12,6 +12,7 @@
     <caption class="sr-only">Positions that closed without a matching opening transaction in the uploaded data</caption>
     <thead class="bg-amber-500/10 text-amber-300">
       <tr>
+        <th scope="col" class="px-3 py-2 text-right">#</th>
         {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
         <th scope="col" class="px-3 py-2 text-left">Close Date</th>
         <th scope="col" class="px-3 py-2 text-left">Ticker</th>
@@ -25,6 +26,7 @@
     <tbody class="bg-slate-900">
       {% for u in unmatched_closes %}
       <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+        <td class="px-3 py-1 text-right text-slate-500">{{ loop.index }}</td>
         {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ u.account }}</td>{% endif %}
         <td class="px-3 py-1 text-slate-300">{{ u.date.strftime('%m/%d/%Y') }}</td>
         <td class="px-3 py-1 font-medium text-slate-100">{{ u.ticker }}{% set is_adj = u.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
@@ -44,15 +46,54 @@
 </p>
 {% endif %}
 
-<h3 class="text-sm font-semibold mb-2 text-slate-200">Still-open positions (no closing trade yet)</h3>
+<h3 class="text-sm font-semibold mb-2 text-slate-200">Still-open positions (no closing trade yet) <span class="text-slate-500 font-normal">({{ open_positions | length }})</span></h3>
 {% if not open_positions %}
 <p class="text-slate-400 text-sm">None -- everything you've bought or opened has been closed out.</p>
 {% else %}
+<div class="flex flex-wrap items-end gap-3 mb-3">
+  <div>
+    <label for="open-ticker-search" class="block text-xs font-semibold text-slate-400 mb-1">Search ticker</label>
+    <input
+      type="text"
+      id="open-ticker-search"
+      placeholder="e.g. ABCL"
+      oninput="filterOpenPositions()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    />
+  </div>
+  <div>
+    <label for="open-date-from" class="block text-xs font-semibold text-slate-400 mb-1">Open date from</label>
+    <input
+      type="date"
+      id="open-date-from"
+      onchange="filterOpenPositions()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    />
+  </div>
+  <div>
+    <label for="open-date-to" class="block text-xs font-semibold text-slate-400 mb-1">Open date to</label>
+    <input
+      type="date"
+      id="open-date-to"
+      onchange="filterOpenPositions()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    />
+  </div>
+  <button
+    type="button"
+    onclick="clearOpenPositionFilters()"
+    class="text-sm font-semibold text-cyan-400 underline hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded px-1 py-1.5"
+  >
+    Clear filters
+  </button>
+  <span id="open-positions-count" role="status" aria-live="polite" class="text-xs text-slate-500 ml-auto"></span>
+</div>
 <div class="overflow-x-auto rounded-lg border border-slate-800">
   <table class="min-w-full text-sm">
-    <caption class="sr-only">Positions opened but not yet closed</caption>
+    <caption class="sr-only">Positions opened but not yet closed -- filterable by ticker and open date</caption>
     <thead class="bg-slate-800 text-slate-200">
       <tr>
+        <th scope="col" class="px-3 py-2 text-right">#</th>
         {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
         <th scope="col" class="px-3 py-2 text-left">Ticker</th>
         <th scope="col" class="px-3 py-2 text-left">Open Date</th>
@@ -64,9 +105,14 @@
         <th scope="col" class="px-3 py-2 text-right">Cost Value</th>
       </tr>
     </thead>
-    <tbody class="bg-slate-900">
+    <tbody id="open-positions-body" class="bg-slate-900">
       {% for p in open_positions %}
-      <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+      <tr
+        data-ticker="{{ p.ticker|lower }}"
+        data-open-date="{{ p.open_date.strftime('%Y-%m-%d') }}"
+        class="border-t border-slate-800 hover:bg-slate-800/50"
+      >
+        <td class="px-3 py-1 text-right text-slate-500">{{ loop.index }}</td>
         {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ p.account }}</td>{% endif %}
         <td class="px-3 py-1 font-medium text-slate-100">{{ p.ticker }}{% set is_adj = p.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
         <td class="px-3 py-1 text-slate-300">{{ p.open_date.strftime('%m/%d/%Y') }}</td>
@@ -78,13 +124,46 @@
         <td class="px-3 py-1 text-right font-semibold text-amber-300">{{ p.cost_value | usd }}</td>
       </tr>
       {% endfor %}
+      <tr id="open-positions-empty-row" hidden>
+        <td colspan="{{ 10 if accounts|length > 1 else 9 }}" class="px-3 py-4 text-center text-slate-400">No open positions match your filters.</td>
+      </tr>
     </tbody>
     <tfoot>
       <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
-        <td colspan="{{ 7 if accounts|length > 1 else 6 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake in open positions</td>
+        <td colspan="{{ 9 if accounts|length > 1 else 8 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake in open positions</td>
         <td class="px-3 py-2 text-right text-amber-300">{{ open_positions_cost_value | usd }}</td>
       </tr>
     </tfoot>
   </table>
 </div>
+<p class="text-xs text-slate-500 mt-2">Filtering only changes what's shown -- the total above always reflects every open position, not just the filtered ones.</p>
+<script>
+  function filterOpenPositions() {
+    const search = document.getElementById("open-ticker-search").value.trim().toLowerCase();
+    const from = document.getElementById("open-date-from").value;
+    const to = document.getElementById("open-date-to").value;
+    const rows = document.querySelectorAll("#open-positions-body tr[data-ticker]");
+    let visible = 0;
+    rows.forEach((row) => {
+      const matchesTicker = !search || row.dataset.ticker.includes(search);
+      const matchesFrom = !from || row.dataset.openDate >= from;
+      const matchesTo = !to || row.dataset.openDate <= to;
+      const show = matchesTicker && matchesFrom && matchesTo;
+      row.hidden = !show;
+      if (show) visible++;
+    });
+    document.getElementById("open-positions-count").textContent = visible + " of " + rows.length + " positions shown";
+    const emptyRow = document.getElementById("open-positions-empty-row");
+    if (emptyRow) emptyRow.hidden = visible !== 0;
+  }
+
+  function clearOpenPositionFilters() {
+    document.getElementById("open-ticker-search").value = "";
+    document.getElementById("open-date-from").value = "";
+    document.getElementById("open-date-to").value = "";
+    filterOpenPositions();
+  }
+
+  filterOpenPositions();
+</script>
 {% endif %}

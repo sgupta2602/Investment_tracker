@@ -519,3 +519,44 @@ def test_still_open_positions_show_cost_value_and_grand_total(client):
     # Grand total across both: $750.00
     assert "$750.00" in dashboard.text
     assert "Total money at stake in open positions" in dashboard.text
+
+
+def test_still_open_positions_carry_search_and_date_filter_attributes(client):
+    """Same reasoning as the Trade Log filter test -- these are pure
+    client-side JS filters over data attributes, so wrong/missing
+    attributes fail silently in the browser with no server error."""
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/05/2026","Buy to Open","AAA 06/19/2026 50.00 C","CALL AAA","2","$3.00","$0.00","-$600.00"\n'
+    )
+    dashboard = client.post("/upload", files={"file": ("open_positions.csv", csv_content, "text/csv")})
+    assert 'data-ticker="aaa"' in dashboard.text.lower()
+    assert 'data-open-date="2026-01-05"' in dashboard.text
+    assert 'id="open-ticker-search"' in dashboard.text
+    assert 'id="open-date-from"' in dashboard.text
+    assert 'id="open-date-to"' in dashboard.text
+    assert "filterOpenPositions" in dashboard.text
+
+
+def test_needs_review_sections_show_counts_and_sequential_row_numbers(client):
+    """Both Needs Review tables (and the main Trade Log) should show a
+    running '#' index down the left and the total count of rows right
+    in each section heading, so 'how many do I have' never requires
+    manually counting rows."""
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/05/2026","Buy to Open","AAA 06/19/2026 50.00 C","CALL AAA","2","$3.00","$0.00","-$600.00"\n'
+        '"01/06/2026","Buy to Open","BBB 06/19/2026 20.00 P","PUT BBB","1","$1.50","$0.00","-$150.00"\n'
+        '"02/01/2026","Sell to Close","CCC 06/19/2026 10.00 C","CALL CCC","1","$2.00","$0.00","$200.00"\n'
+    )
+    dashboard = client.post("/upload", files={"file": ("needs_review.csv", csv_content, "text/csv")})
+    assert "Still-open positions (no closing trade yet)" in dashboard.text
+    assert "<span class=\"text-slate-500 font-normal\">(2)</span>" in dashboard.text
+    assert "Closed positions missing an opening trade" in dashboard.text
+    assert "<span class=\"text-slate-500 font-normal\">(1)</span>" in dashboard.text
+
+
+def test_trade_log_shows_sequential_row_numbers(client):
+    with open(FIXTURE, "rb") as f:
+        resp = client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+    assert '<th scope="col" class="px-2 py-2 text-right">#</th>' in resp.text
