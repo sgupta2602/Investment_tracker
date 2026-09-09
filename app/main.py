@@ -11,6 +11,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -306,24 +307,37 @@ def dashboard(request: Request, upload_id: str):
     viewing_all_periods = upload_id == "all"
     current_upload_id: Optional[int] = None if viewing_all_periods else int(upload_id)
 
-    if selected_account and not viewing_all_periods:
-        # A statement belongs to exactly one account. If the statement
-        # you're currently viewing (via Viewing period) isn't the one you
-        # just picked in the Account filter, every tab scoped to "this
-        # upload + this account" (Monthly Performance, Income, Transfers)
-        # would come back empty -- not because there's no data, but
-        # because the two selections point at different accounts. Jump to
-        # that account's most recent statement instead of rendering a
-        # blank dashboard. The JS-side fix keeps this from happening via
-        # the UI at all; this is the server-side safety net for direct/
-        # bookmarked URLs. (Not needed for "all": a combined view is valid
-        # for any account, no specific-statement mismatch is possible.)
+    if not viewing_all_periods:
         current_upload = next((u for u in uploads if u["id"] == current_upload_id), None)
-        if current_upload and current_upload.get("account") != selected_account:
+        current_upload_account = current_upload.get("account") if current_upload else None
+
+        if selected_account and current_upload_account != selected_account:
+            # A statement belongs to exactly one account. If the statement
+            # you're currently viewing (via Viewing period) isn't the one
+            # you just picked in the Account filter, every tab scoped to
+            # "this upload + this account" (Monthly Performance, Income,
+            # Transfers) would come back empty -- not because there's no
+            # data, but because the two selections point at different
+            # accounts. Jump to that account's most recent statement
+            # instead of rendering a blank dashboard. The JS-side fix keeps
+            # this from happening via the UI at all; this is the server-
+            # side safety net for direct/bookmarked URLs.
             same_account_uploads = [u for u in uploads if u.get("account") == selected_account]
             if same_account_uploads:
                 target_id = same_account_uploads[0]["id"]  # newest period first, already sorted
                 return RedirectResponse(url=f"/dashboard/{target_id}?account={selected_account}", status_code=303)
+
+        elif not selected_account and current_upload_account and len(accounts) > 1:
+            # Vice versa: landing on one specific statement with NO account
+            # filter set would show "Account: All accounts" next to a
+            # Viewing period that's actually only one account's data --
+            # contradictory and confusing. Make the account explicit in the
+            # URL (and therefore the dropdown) instead of leaving it
+            # looking broader than it really is. Preserves any other query
+            # params (e.g. added=/skipped= from a fresh upload's redirect).
+            params = dict(request.query_params)
+            params["account"] = current_upload_account
+            return RedirectResponse(url=f"/dashboard/{current_upload_id}?{urlencode(params)}", status_code=303)
 
     def _scoped(items: list[dict]) -> list[dict]:
         return _scoped_by_account(items, selected_account)

@@ -141,19 +141,31 @@
         );
         if (firstMatch) uploadId = firstMatch.value;
       }
+    } else if (!account && uploadId !== "all") {
+      // Switching TO "All accounts" while one specific statement was
+      // selected -- that combination is never valid (a statement belongs
+      // to exactly one account), so fall back to the combined view
+      // instead of bouncing straight back to the account just left (the
+      // server would otherwise re-infer and redirect back to it).
+      uploadId = "all";
     }
 
     window.location = "/dashboard/" + uploadId + (account ? "?account=" + encodeURIComponent(account) : "");
   }
 
   function syncUploadOptionsToAccount() {
-    // While a specific account is selected, grey out (disable) every
-    // OTHER account's periods in the Viewing period dropdown -- picking
-    // one used to silently produce an empty dashboard, so don't offer it.
+    // The Viewing period dropdown's individual per-account statements only
+    // make sense once a specific account is chosen -- picking one while
+    // "All accounts" is active used to silently change the Account filter
+    // out from under you (or, before this, quietly show one account's data
+    // while the label still said "All accounts"). So: no account selected
+    // -> every account's optgroup is disabled (only "All periods
+    // (combined)" stays pickable). A specific account selected -> only
+    // that account's own optgroup is enabled.
     const accountSelect = document.getElementById("account-select");
     const account = accountSelect ? accountSelect.value : "";
     document.querySelectorAll("#upload-select optgroup").forEach((group) => {
-      group.disabled = Boolean(account) && group.dataset.account !== account;
+      group.disabled = !account || group.dataset.account !== account;
     });
   }
 

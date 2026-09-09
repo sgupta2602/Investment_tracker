@@ -96,7 +96,11 @@ def test_account_filter_hidden_with_only_one_account(client):
 
 def test_account_filter_appears_and_lists_distinct_accounts_when_multiple(client):
     """Two statements from two different (masked) account numbers must
-    both show up as filter options in the global Account dropdown."""
+    both show up as filter options in the global Account dropdown. The
+    account you JUST uploaded (and are now viewing) should come back
+    pre-selected -- landing on a specific statement with 'Account: All
+    accounts' still showing would be a contradiction (see the vice-versa
+    auto-sync test below)."""
     with open(FIXTURE, "rb") as f:
         client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
     with open(FIXTURE, "rb") as f:
@@ -104,7 +108,7 @@ def test_account_filter_appears_and_lists_distinct_accounts_when_multiple(client
 
     assert 'id="account-select"' in dashboard.text
     assert '<option value="XX111" >XX111</option>' in dashboard.text
-    assert '<option value="XX222" >XX222</option>' in dashboard.text
+    assert '<option value="XX222" selected>XX222</option>' in dashboard.text
 
 
 def test_selecting_an_account_scopes_every_tab_to_just_that_account(client):
@@ -175,7 +179,63 @@ def test_viewing_period_dropdown_disables_other_accounts_optgroup(client):
     assert 'data-account="XX111"' in scoped.text
     assert 'data-account="XX222"' in scoped.text
     assert "syncUploadOptionsToAccount" in scoped.text
-    assert "group.disabled = Boolean(account)" in scoped.text
+    assert "group.disabled = !account || group.dataset.account !== account" in scoped.text
+
+
+def test_viewing_period_dropdown_disables_every_account_when_all_accounts_selected(client):
+    """The other half of the same UX fix: with 'Account: All accounts'
+    active, NEITHER account's individual periods should be pickable in
+    Viewing period -- only after choosing a specific account do that
+    account's own periods become selectable. 'All periods (combined)'
+    stays selectable regardless (it isn't tied to one account)."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
+
+    all_accounts = client.get("/dashboard/all")
+    assert 'value="all" selected' in all_accounts.text
+    assert 'data-account="XX111"' in all_accounts.text
+    assert 'data-account="XX222"' in all_accounts.text
+    # JS disables every optgroup up front (empty account value); no
+    # server-rendered "disabled" needed since this is applied client-side.
+    assert "group.disabled = !account" in all_accounts.text
+    # And switching TO "All accounts" while viewing one specific statement
+    # must fall back to "all" client-side, instead of bouncing right back
+    # to the account just left (the server would otherwise re-infer it).
+    assert 'uploadId = "all"' in all_accounts.text
+
+
+def test_landing_on_one_statement_auto_selects_its_own_account(client):
+    """Vice versa of the account -> period sync: landing on ONE specific
+    statement with no ?account= in the URL must auto-redirect to make
+    that statement's own account explicit, instead of showing 'Account:
+    All accounts' next to what is actually just one account's data."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
+
+    resp = client.get("/dashboard/1", follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/dashboard/1?account=XX111"
+
+    followed = client.get(resp.headers["location"])
+    assert '<option value="XX111" selected>XX111</option>' in followed.text
+
+
+def test_auto_account_redirect_preserves_other_query_params(client):
+    """The fresh-upload redirect (POST /upload -> /dashboard/{id}?added=N)
+    must survive having ?account= appended -- losing 'added'/'skipped'
+    would silently drop the 'Added N new transactions' banner."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        upload2 = client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
+
+    redirect_locations = [str(r.headers.get("location", "")) for r in upload2.history]
+    assert any("account=XX222" in loc and "added=" in loc for loc in redirect_locations)
+    assert "Added" in upload2.text
 
 
 def test_dashboard_all_periods_combines_every_statement(client):
