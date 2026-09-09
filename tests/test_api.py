@@ -133,6 +133,51 @@ def test_selecting_an_account_scopes_every_tab_to_just_that_account(client):
     assert '<option value="XX111" selected>XX111</option>' in scoped.text
 
 
+def test_switching_to_a_different_account_redirects_off_a_mismatched_period(client):
+    """Regression test: a statement belongs to exactly one account. If
+    you're viewing XX222's statement and pick Account=XX111 in the
+    filter, staying on XX222's upload_id would make Monthly Performance,
+    Income, and Transfers all render empty (they're scoped to THIS
+    upload's transactions, further filtered by account -- an upload from
+    a different account has zero rows left after that filter). The
+    dashboard must instead redirect to XX111's own most recent statement."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        upload2 = client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
+    upload2_id = re.search(r'<option value="(\d+)"[^>]*selected', upload2.text).group(1)
+
+    resp = client.get(f"/dashboard/{upload2_id}?account=XX111", follow_redirects=False)
+    assert resp.status_code == 303
+    location = resp.headers["location"]
+    assert "account=XX111" in location
+    assert f"/dashboard/{upload2_id}?" not in location  # must NOT stay on XX222's statement
+
+    followed = client.get(location)
+    # The fixture's own trades and dividends must show up -- proving
+    # Monthly Performance and Income are scoped to XX111's OWN statement,
+    # not still pointed at XX222's (which would render both empty).
+    assert "No closed trades in this upload." not in followed.text
+    assert "No income events in this upload." not in followed.text
+
+
+def test_viewing_period_dropdown_disables_other_accounts_optgroup(client):
+    """UX fix for the same bug: while Account=XX111 is active, XX222's
+    periods should show as disabled in the Viewing period dropdown --
+    they used to be pickable and would silently produce an empty
+    dashboard once picked."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
+
+    scoped = client.get("/dashboard/1?account=XX111", follow_redirects=True)
+    assert 'data-account="XX111"' in scoped.text
+    assert 'data-account="XX222"' in scoped.text
+    assert "syncUploadOptionsToAccount" in scoped.text
+    assert "group.disabled = Boolean(account)" in scoped.text
+
+
 def test_logout_revokes_access(client):
     client.post("/logout")
     resp = client.get("/", follow_redirects=False)

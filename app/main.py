@@ -296,6 +296,24 @@ def dashboard(request: Request, upload_id: int):
     accounts = sorted({t["account"] for t in all_trades_unfiltered if t.get("account")})
     selected_account = request.query_params.get("account") or None
 
+    if selected_account:
+        # A statement belongs to exactly one account. If the statement
+        # you're currently viewing (via Viewing period) isn't the one you
+        # just picked in the Account filter, every tab scoped to "this
+        # upload + this account" (Monthly Performance, Income, Transfers)
+        # would come back empty -- not because there's no data, but
+        # because the two selections point at different accounts. Jump to
+        # that account's most recent statement instead of rendering a
+        # blank dashboard. The JS-side fix keeps this from happening via
+        # the UI at all; this is the server-side safety net for direct/
+        # bookmarked URLs.
+        current_upload = next((u for u in uploads if u["id"] == upload_id), None)
+        if current_upload and current_upload.get("account") != selected_account:
+            same_account_uploads = [u for u in uploads if u.get("account") == selected_account]
+            if same_account_uploads:
+                target_id = same_account_uploads[0]["id"]  # newest period first, already sorted
+                return RedirectResponse(url=f"/dashboard/{target_id}?account={selected_account}", status_code=303)
+
     def _scoped(items: list[dict]) -> list[dict]:
         return _scoped_by_account(items, selected_account)
 
