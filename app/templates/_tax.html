@@ -1,6 +1,6 @@
 <h2 class="text-lg font-bold mb-3 text-slate-100">Gains / Losses / Estimated Tax by Term</h2>
 {% if not month_trades %}
-<p class="text-slate-400 text-sm">No closed trades in this upload.</p>
+<p class="text-slate-400 text-sm">No closed trades{{ '' if viewing_all_periods else ' in this upload' }}.</p>
 {% else %}
 <div class="overflow-x-auto rounded-lg border border-slate-800">
   <table class="min-w-full text-sm">

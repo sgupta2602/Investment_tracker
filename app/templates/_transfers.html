@@ -6,7 +6,7 @@
   Click a card below to filter the table to just that type; click it again (or "Total") to clear.
 </p>
 {% if not transfer_events %}
-<p class="text-slate-400 text-sm">No transfers in this upload.</p>
+<p class="text-slate-400 text-sm">No transfers{{ '' if viewing_all_periods else ' in this upload' }}.</p>
 {% else %}
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4" id="transfer-filter-cards">
   {% for label, amount in transfer_totals.items() %}

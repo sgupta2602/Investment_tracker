@@ -178,6 +178,54 @@ def test_viewing_period_dropdown_disables_other_accounts_optgroup(client):
     assert "group.disabled = Boolean(account)" in scoped.text
 
 
+def test_dashboard_all_periods_combines_every_statement(client):
+    """Picking 'All periods (combined)' from the Viewing period dropdown
+    must make Monthly Performance/Income/Transfers behave like Overview
+    -- full history, not one statement -- instead of forcing you to leave
+    the dashboard to see combined totals."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_A.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX222_B.csv", f, "text/csv")})
+
+    single = client.get("/dashboard/1")
+    combined = client.get("/dashboard/all")
+
+    assert 'value="all" selected' in combined.text
+    assert "No closed trades" not in combined.text
+    assert "No income events" not in combined.text
+
+    # Combined trade count on Monthly Performance must be double a single
+    # statement's -- proving it's actually pulling every upload, not just
+    # relabeling the same single-statement numbers.
+    single_trades = int(re.search(r'<dt class="text-xs uppercase tracking-wide text-slate-500">Trades</dt>\s*<dd[^>]*>(\d+)', single.text).group(1))
+    combined_trades = int(re.search(r'<dt class="text-xs uppercase tracking-wide text-slate-500">Trades</dt>\s*<dd[^>]*>(\d+)', combined.text).group(1))
+    assert combined_trades == single_trades * 2
+
+    # No single statement to delete while viewing the combined view.
+    assert "Delete this statement" not in combined.text
+
+
+def test_dashboard_all_periods_respects_the_account_filter(client):
+    """'All periods' scoped to one account must show just that account's
+    combined history, not everyone's -- and switching accounts while
+    already on 'All periods' should stay on 'All periods' rather than
+    getting bounced to one specific statement."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_A.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX222_B.csv", f, "text/csv")})
+
+    combined = client.get("/dashboard/all")
+    scoped = client.get("/dashboard/all?account=XX111", follow_redirects=False)
+
+    assert scoped.status_code == 200  # no mismatch redirect -- "all" is valid for any account
+    combined_trades = int(re.search(r'<dt class="text-xs uppercase tracking-wide text-slate-500">Trades</dt>\s*<dd[^>]*>(\d+)', combined.text).group(1))
+    scoped_trades = int(re.search(r'<dt class="text-xs uppercase tracking-wide text-slate-500">Trades</dt>\s*<dd[^>]*>(\d+)', scoped.text).group(1))
+    assert scoped_trades == combined_trades // 2
+    assert 'value="all" selected' in scoped.text
+
+
 def test_logout_revokes_access(client):
     client.post("/logout")
     resp = client.get("/", follow_redirects=False)

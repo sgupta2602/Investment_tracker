@@ -18,6 +18,7 @@
         class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
         onchange="navigateDashboard()"
       >
+        <option value="all" {% if viewing_all_periods %}selected{% endif %}>All periods (combined)</option>
         {% if accounts | length > 1 %}
           {% for group in grouped_uploads %}
           <optgroup label="{{ group.account }}" data-account="{{ group.account }}">
@@ -60,12 +61,14 @@
     <a href="/upload" class="text-sm font-semibold text-cyan-400 underline hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded">
       Upload another statement
     </a>
+    {% if not viewing_all_periods %}
     <form action="/delete_upload/{{ current_upload_id }}" method="post"
           onsubmit="return confirm('Delete this statement? This removes its transactions and re-runs matching across the rest of your history. This cannot be undone.');">
       <button type="submit" class="text-sm font-semibold text-rose-400 underline hover:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 rounded">
         Delete this statement
       </button>
     </form>
+    {% endif %}
   </div>
 </div>
 
@@ -124,11 +127,12 @@
     const account = accountSelect ? accountSelect.value : "";
     let uploadId = uploadSelect.value;
 
-    if (account) {
+    if (account && uploadId !== "all") {
       // The period you're currently viewing might belong to a DIFFERENT
       // account than the one just picked -- every tab scoped to "this
       // upload + this account" would render empty in that case. Jump to
       // the newly selected account's own most recent period instead.
+      // (Skipped for "all" -- a combined view is valid for any account.)
       const selectedOption = uploadSelect.options[uploadSelect.selectedIndex];
       const currentGroup = selectedOption ? selectedOption.closest("optgroup") : null;
       if (!currentGroup || currentGroup.dataset.account !== account) {

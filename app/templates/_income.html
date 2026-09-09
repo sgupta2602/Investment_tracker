@@ -4,7 +4,7 @@
   Click a card below to filter the table to just that type; click it again (or "Total") to clear.
 </p>
 {% if not income_events %}
-<p class="text-slate-400 text-sm">No income events in this upload.</p>
+<p class="text-slate-400 text-sm">No income events{{ '' if viewing_all_periods else ' in this upload' }}.</p>
 {% else %}
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4" id="income-filter-cards">
   {% for label, amount in income_totals.items() %}

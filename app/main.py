@@ -287,7 +287,7 @@ def _scoped_by_account(items: list[dict], account: Optional[str]) -> list[dict]:
 
 
 @app.get("/dashboard/{upload_id}")
-def dashboard(request: Request, upload_id: int):
+def dashboard(request: Request, upload_id: str):
     uploads = repo.list_uploads()
     grouped_uploads = repo.group_uploads_by_account(uploads)
     all_trades_unfiltered = repo.load_all_closed_trades()
@@ -296,7 +296,17 @@ def dashboard(request: Request, upload_id: int):
     accounts = sorted({t["account"] for t in all_trades_unfiltered if t.get("account")})
     selected_account = request.query_params.get("account") or None
 
-    if selected_account:
+    # "all" is a pseudo period meaning "every statement, combined" -- picked
+    # from the Viewing period dropdown instead of one specific upload_id.
+    # It exists because Monthly Performance/Gains-Losses-Tax/Income/
+    # Transfers are normally scoped to ONE statement, which made "Account:
+    # All accounts" confusingly still show just one narrow date range on
+    # those tabs. This gives those tabs a real combined view without
+    # having to leave the dashboard for Overview.
+    viewing_all_periods = upload_id == "all"
+    current_upload_id: Optional[int] = None if viewing_all_periods else int(upload_id)
+
+    if selected_account and not viewing_all_periods:
         # A statement belongs to exactly one account. If the statement
         # you're currently viewing (via Viewing period) isn't the one you
         # just picked in the Account filter, every tab scoped to "this
@@ -306,8 +316,9 @@ def dashboard(request: Request, upload_id: int):
         # that account's most recent statement instead of rendering a
         # blank dashboard. The JS-side fix keeps this from happening via
         # the UI at all; this is the server-side safety net for direct/
-        # bookmarked URLs.
-        current_upload = next((u for u in uploads if u["id"] == upload_id), None)
+        # bookmarked URLs. (Not needed for "all": a combined view is valid
+        # for any account, no specific-statement mismatch is possible.)
+        current_upload = next((u for u in uploads if u["id"] == current_upload_id), None)
         if current_upload and current_upload.get("account") != selected_account:
             same_account_uploads = [u for u in uploads if u.get("account") == selected_account]
             if same_account_uploads:
@@ -318,8 +329,12 @@ def dashboard(request: Request, upload_id: int):
         return _scoped_by_account(items, selected_account)
 
     all_trades = _scoped(all_trades_unfiltered)
-    month_trades = _scoped(repo.load_closed_trades_for_upload(upload_id))
-    cash_events = _scoped(repo.load_income_events_for_upload(upload_id))
+    if viewing_all_periods:
+        month_trades = all_trades
+        cash_events = _scoped(repo.load_all_income_events())
+    else:
+        month_trades = _scoped(repo.load_closed_trades_for_upload(current_upload_id))
+        cash_events = _scoped(repo.load_income_events_for_upload(current_upload_id))
     income_events = filter_income_events(cash_events)
     transfer_events = filter_transfer_events(cash_events)
 
@@ -340,7 +355,8 @@ def dashboard(request: Request, upload_id: int):
         {
             "uploads": uploads,
             "grouped_uploads": grouped_uploads,
-            "current_upload_id": upload_id,
+            "current_upload_id": current_upload_id,
+            "viewing_all_periods": viewing_all_periods,
             "all_trades": all_trades,
             "accounts": accounts,
             "selected_account": selected_account,
