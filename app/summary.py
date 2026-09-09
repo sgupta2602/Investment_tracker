@@ -67,6 +67,24 @@ def performance_by_month(trades: list[dict]) -> list[dict]:
     return series
 
 
+def cumulative_gain_series(trades: list[dict]) -> list[dict]:
+    """Running total of gain_loss, computed fresh over whatever trades
+    list is passed in -- deliberately NOT reading the closed_trades
+    table's stored cumulative_gain column, which is a running total
+    across the FULL combined history (every account interleaved by sell
+    date), computed once at rebuild time. Reusing that column here would
+    be wrong the moment this function is called with an account-filtered
+    subset: the stored value would still have other accounts' gains
+    baked in. Recomputing locally is correct for both the unfiltered
+    (all accounts) and filtered (one account) cases alike."""
+    running = 0.0
+    points = []
+    for t in sorted(trades, key=lambda t: t["sell_date"]):
+        running += t["gain_loss"]
+        points.append({"date": t["sell_date"].strftime("%m/%d/%Y"), "value": round(running, 2)})
+    return points
+
+
 def performance_by_year(trades: list[dict]) -> list[dict]:
     """Year-over-Year Gain: same grouping logic as performance_by_month(),
     just bucketed by calendar year instead of month -- a coarser view

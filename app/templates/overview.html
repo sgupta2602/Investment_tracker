@@ -2,7 +2,29 @@
 {% block title %}Overview - Investment Tracker{% endblock %}
 {% block content %}
 
-<h2 class="text-xl font-bold mb-4 text-slate-100">Performance Overview <span class="text-sm font-normal text-slate-500">(all {{ trade_count }} closed trades, all uploads)</span></h2>
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <h2 class="text-xl font-bold text-slate-100">
+    Performance Overview
+    <span class="text-sm font-normal text-slate-500">
+      ({{ trade_count }} closed trades{% if selected_account %} for {{ selected_account }}{% else %}, all accounts{% endif %})
+    </span>
+  </h2>
+  {% if accounts | length > 1 %}
+  <div>
+    <label for="account-select" class="text-sm font-medium mr-2 text-slate-300">Account:</label>
+    <select
+      id="account-select"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+      onchange="navigateOverview()"
+    >
+      <option value="">All accounts</option>
+      {% for acct in accounts %}
+      <option value="{{ acct }}" {% if acct == selected_account %}selected{% endif %}>{{ acct }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+</div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
   <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
@@ -175,6 +197,11 @@
 </div>
 
 <script>
+  function navigateOverview() {
+    const account = document.getElementById("account-select").value;
+    window.location = "/overview" + (account ? "?account=" + encodeURIComponent(account) : "");
+  }
+
   function toggleRecommenderDrilldown(rowId) {
     const detail = document.getElementById(rowId + "-detail");
     const chevron = document.getElementById(rowId + "-chevron");

@@ -279,6 +279,39 @@ def test_overview_shows_performance_charts_after_upload(client):
     assert "Year-over-Year Gain" in resp.text
 
 
+def test_overview_account_filter_hidden_with_only_one_account(client):
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+    resp = client.get("/overview")
+    assert 'id="account-select"' not in resp.text
+
+
+def test_overview_account_filter_scopes_every_number_to_one_account(client):
+    """The whole point: picking Account=XX111 on Overview must re-derive
+    the trade count (and everything downstream of it -- Realized
+    Investment, Total Gain, the charts) from just that account's
+    trades, not merely relabel the combined totals. Default with no
+    filter must stay 'all accounts' combined."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
+
+    combined = client.get("/overview")
+    assert ", all accounts)" in combined.text
+    combined_count = int(re.search(r"\((\d+) closed trades", combined.text).group(1))
+
+    scoped = client.get("/overview?account=XX111")
+    assert "for XX111)" in scoped.text
+    scoped_count = int(re.search(r"\((\d+) closed trades", scoped.text).group(1))
+
+    # Same fixture uploaded under two distinct accounts -> exactly half
+    # the combined trades belong to just one of them.
+    assert scoped_count == combined_count // 2
+    assert scoped_count > 0
+    assert '<option value="XX111" selected>XX111</option>' in scoped.text
+
+
 def test_home_redirects_to_overview_not_stale_dashboard(client):
     with open(FIXTURE, "rb") as f:
         client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})

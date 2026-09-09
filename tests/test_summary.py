@@ -2,6 +2,7 @@
 from datetime import datetime
 
 from app.summary import (
+    cumulative_gain_series,
     performance_by_month,
     performance_by_recommender,
     performance_by_ticker,
@@ -140,6 +141,31 @@ def test_years_sorted_chronologically_with_year_labels():
     rows = performance_by_year(trades)
     assert [r["year"] for r in rows] == ["2024", "2025", "2026"]
     assert [r["label"] for r in rows] == ["2024", "2025", "2026"]
+
+
+def test_cumulative_gain_series_is_a_running_total_sorted_by_sell_date():
+    trades = [
+        _trade(sell_date=datetime(2026, 1, 10), gain_loss=100.0),
+        _trade(sell_date=datetime(2026, 1, 5), gain_loss=50.0),  # out of order on purpose
+        _trade(sell_date=datetime(2026, 1, 20), gain_loss=-30.0),
+    ]
+    points = cumulative_gain_series(trades)
+    assert [p["value"] for p in points] == [50.0, 150.0, 120.0]
+
+
+def test_cumulative_gain_series_recomputes_fresh_not_from_a_stored_column():
+    """The whole reason this function exists instead of reading a
+    trade's own 'cumulative_gain' field: that field (if present) might
+    be a running total over a DIFFERENT, larger set of trades (e.g. the
+    full multi-account history) than whatever subset got passed in
+    here. This must ignore any such field entirely and derive the
+    running total purely from gain_loss over the given list."""
+    trades = [
+        _trade(sell_date=datetime(2026, 1, 5), gain_loss=100.0, cumulative_gain=99999.0),
+        _trade(sell_date=datetime(2026, 1, 10), gain_loss=50.0, cumulative_gain=99999.0),
+    ]
+    points = cumulative_gain_series(trades)
+    assert [p["value"] for p in points] == [100.0, 150.0]
 
 
 def test_performance_stats_win_rate_and_averages():

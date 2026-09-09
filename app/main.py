@@ -10,6 +10,7 @@ import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -26,6 +27,7 @@ from app.parsing import extract_account_label, parse_transactions_csv
 from app.quotes import random_quote
 from app.transfers import filter_transfer_events
 from app.summary import (
+    cumulative_gain_series,
     gains_losses_by_term,
     monthly_performance,
     performance_by_month,
@@ -275,6 +277,15 @@ async def save_trade_annotation(request: Request):
     return JSONResponse({"ok": True})
 
 
+def _scoped_by_account(items: list[dict], account: Optional[str]) -> list[dict]:
+    """Narrows a list of account-tagged dicts down to one account, if
+    given. Shared between the Dashboard and Overview account filters so
+    'Account: XXX111' means the exact same thing on both pages."""
+    if not account:
+        return items
+    return [i for i in items if i.get("account") == account]
+
+
 @app.get("/dashboard/{upload_id}")
 def dashboard(request: Request, upload_id: int):
     uploads = repo.list_uploads()
@@ -286,14 +297,7 @@ def dashboard(request: Request, upload_id: int):
     selected_account = request.query_params.get("account") or None
 
     def _scoped(items: list[dict]) -> list[dict]:
-        """Narrows a list of account-tagged dicts down to the globally
-        selected account, if one is chosen. Applied consistently across
-        every tab (Trade Log, Monthly Performance, Tax, Income,
-        Transfers, Needs Review) so 'Account: XXX111' means the same
-        thing everywhere on the dashboard, not just one table."""
-        if not selected_account:
-            return items
-        return [i for i in items if i.get("account") == selected_account]
+        return _scoped_by_account(items, selected_account)
 
     all_trades = _scoped(all_trades_unfiltered)
     month_trades = _scoped(repo.load_closed_trades_for_upload(upload_id))
@@ -349,19 +353,24 @@ def overview(request: Request):
     if not uploads:
         return RedirectResponse(url="/upload")
 
-    all_trades = repo.load_all_closed_trades()
+    all_trades_unfiltered = repo.load_all_closed_trades()
+    # Always computed from the FULL, unfiltered history -- so the dropdown
+    # keeps listing every account no matter which one is currently selected.
+    accounts = sorted({t["account"] for t in all_trades_unfiltered if t.get("account")})
+    selected_account = request.query_params.get("account") or None
+    all_trades = _scoped_by_account(all_trades_unfiltered, selected_account)
+
     monthly_series = performance_by_month(all_trades)
     yearly_series = performance_by_year(all_trades)
-    cumulative_points = [
-        {"date": t["sell_date"].strftime("%m/%d/%Y"), "value": round(t["cumulative_gain"], 2)}
-        for t in all_trades
-    ]
+    cumulative_points = cumulative_gain_series(all_trades)
 
     return templates.TemplateResponse(
         request,
         "overview.html",
         {
             "uploads": uploads,
+            "accounts": accounts,
+            "selected_account": selected_account,
             "performance": monthly_performance(all_trades),
             "term_breakdown": gains_losses_by_term(all_trades),
             "monthly_series": monthly_series,
