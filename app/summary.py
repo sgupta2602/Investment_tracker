@@ -67,6 +67,25 @@ def performance_by_month(trades: list[dict]) -> list[dict]:
     return series
 
 
+def performance_by_year(trades: list[dict]) -> list[dict]:
+    """Year-over-Year Gain: same grouping logic as performance_by_month(),
+    just bucketed by calendar year instead of month -- a coarser view
+    for spotting multi-year trends that a month-by-month bar chart is
+    too noisy to show at a glance. Spans the entire trade history,
+    oldest year first."""
+    by_year: dict[str, list[dict]] = {}
+    for t in trades:
+        key = t["sell_date"].strftime("%Y")
+        by_year.setdefault(key, []).append(t)
+
+    series = []
+    for key in sorted(by_year.keys()):
+        group = by_year[key]
+        perf = monthly_performance(group)
+        series.append({"year": key, "label": key, "trade_count": len(group), **perf})
+    return series
+
+
 def performance_stats(trades: list[dict]) -> dict:
     """A quick 'scorecard' for a period's closed trades -- separate from
     monthly_performance()'s dollar totals, this is about the shape and

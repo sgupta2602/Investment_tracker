@@ -31,6 +31,7 @@ from app.summary import (
     performance_by_month,
     performance_by_recommender,
     performance_by_ticker,
+    performance_by_year,
     performance_stats,
     top_bottom_tickers,
 )
@@ -339,6 +340,7 @@ def overview(request: Request):
 
     all_trades = repo.load_all_closed_trades()
     monthly_series = performance_by_month(all_trades)
+    yearly_series = performance_by_year(all_trades)
     cumulative_points = [
         {"date": t["sell_date"].strftime("%m/%d/%Y"), "value": round(t["cumulative_gain"], 2)}
         for t in all_trades
@@ -352,6 +354,7 @@ def overview(request: Request):
             "performance": monthly_performance(all_trades),
             "term_breakdown": gains_losses_by_term(all_trades),
             "monthly_series": monthly_series,
+            "yearly_series": yearly_series,
             "cumulative_points": cumulative_points,
             "trade_count": len(all_trades),
             "recommender_breakdown": performance_by_recommender(all_trades),

@@ -5,6 +5,7 @@ from app.summary import (
     performance_by_month,
     performance_by_recommender,
     performance_by_ticker,
+    performance_by_year,
     performance_stats,
     top_bottom_tickers,
 )
@@ -110,6 +111,35 @@ def test_months_sorted_chronologically_with_human_readable_labels():
     rows = performance_by_month(trades)
     assert [r["month"] for r in rows] == ["2025-12", "2026-01", "2026-03"]
     assert [r["label"] for r in rows] == ["Dec 2025", "Jan 2026", "Mar 2026"]
+
+
+def test_yearly_groups_by_actual_sell_date_year_not_by_upload():
+    """Same idea as the month version: two trades sold in the same
+    calendar year land in one bucket regardless of which statement they
+    came from, or which month within the year they happened in."""
+    trades = [
+        _trade(ticker="A", sell_date=datetime(2025, 1, 5), gain_loss=100.0),
+        _trade(ticker="B", sell_date=datetime(2025, 11, 28), gain_loss=50.0),
+        _trade(ticker="C", sell_date=datetime(2026, 2, 3), gain_loss=-30.0),
+    ]
+    rows = performance_by_year(trades)
+    by_year = {r["year"]: r for r in rows}
+
+    assert by_year["2025"]["trade_count"] == 2
+    assert by_year["2025"]["gain"] == 150.0
+    assert by_year["2026"]["trade_count"] == 1
+    assert by_year["2026"]["gain"] == -30.0
+
+
+def test_years_sorted_chronologically_with_year_labels():
+    trades = [
+        _trade(sell_date=datetime(2026, 3, 1)),
+        _trade(sell_date=datetime(2024, 1, 1)),
+        _trade(sell_date=datetime(2025, 12, 1)),
+    ]
+    rows = performance_by_year(trades)
+    assert [r["year"] for r in rows] == ["2024", "2025", "2026"]
+    assert [r["label"] for r in rows] == ["2024", "2025", "2026"]
 
 
 def test_performance_stats_win_rate_and_averages():

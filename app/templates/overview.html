@@ -51,6 +51,17 @@
 </div>
 
 <div class="rounded-xl border border-slate-800 bg-slate-900 p-5 mb-6">
+  <h3 class="font-semibold text-slate-200 mb-1">Year-over-Year Gain</h3>
+  <p class="text-xs text-slate-500 mb-3">
+    Same grouping as Month-over-Month above, rolled up to calendar year for a coarser view of
+    the multi-year trend -- grouped by each trade's actual sell date, across your whole history.
+  </p>
+  <div class="h-72">
+    <canvas id="yearlyChart" role="img" aria-label="Bar chart of gain per calendar year, across all uploaded statements"></canvas>
+  </div>
+</div>
+
+<div class="rounded-xl border border-slate-800 bg-slate-900 p-5 mb-6">
   <h3 class="font-semibold text-slate-200 mb-1">Gain by Recommender</h3>
   <p class="text-xs text-slate-500 mb-3">
     Pulled from the Trade Log's "Recommended By" column -- fill that in per trade to see who's
@@ -173,6 +184,7 @@
 
   const cumulativePoints = {{ cumulative_points | tojson | safe }};
   const monthlySeries = {{ monthly_series | tojson | safe }};
+  const yearlySeries = {{ yearly_series | tojson | safe }};
   const termBreakdown = {{ term_breakdown | tojson | safe }};
 
   const GRID_COLOR = "#1e293b";   // slate-800
@@ -231,6 +243,25 @@
         label: "Gain per Month ($)",
         data: monthlySeries.map((p) => p.gain),
         backgroundColor: monthlySeries.map((p) => (p.gain >= 0 ? "#34d399" : "#fb7185")),
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: darkScales,
+      plugins: { legend: darkLegend },
+    },
+  });
+
+  new Chart(document.getElementById("yearlyChart"), {
+    type: "bar",
+    data: {
+      labels: yearlySeries.map((p) => p.label),
+      datasets: [{
+        label: "Gain per Year ($)",
+        data: yearlySeries.map((p) => p.gain),
+        backgroundColor: yearlySeries.map((p) => (p.gain >= 0 ? "#34d399" : "#fb7185")),
         borderRadius: 6,
       }],
     },
