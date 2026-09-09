@@ -58,6 +58,7 @@
         <th scope="col" class="px-3 py-2 text-left">Type</th>
         <th scope="col" class="px-3 py-2 text-right">Units</th>
         <th scope="col" class="px-3 py-2 text-right">Open Price</th>
+        <th scope="col" class="px-3 py-2 text-right">Cost Value</th>
       </tr>
     </thead>
     <tbody class="bg-slate-900">
@@ -70,9 +71,16 @@
         <td class="px-3 py-1 text-slate-300">{{ 'Call' if p.right == 'C' else ('Put' if p.right == 'P' else '--') }}</td>
         <td class="px-3 py-1 text-right text-slate-300">{{ "%.0f"|format(p.remaining_units) }}</td>
         <td class="px-3 py-1 text-right text-slate-300">{{ p.unit_price | usd }}</td>
+        <td class="px-3 py-1 text-right font-semibold text-amber-300">{{ p.cost_value | usd }}</td>
       </tr>
       {% endfor %}
     </tbody>
+    <tfoot>
+      <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
+        <td colspan="6" class="px-3 py-2 text-right text-slate-300">Total money at stake in open positions</td>
+        <td class="px-3 py-2 text-right text-amber-300">{{ open_positions_cost_value | usd }}</td>
+      </tr>
+    </tfoot>
   </table>
 </div>
 {% endif %}

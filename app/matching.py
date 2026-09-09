@@ -171,6 +171,11 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
                     "open_date": lot.open_date,
                     "remaining_units": lot.remaining_units,
                     "unit_price": lot.unit_price,
+                    # How much money is actually at stake in this still-open
+                    # position -- units * price paid, same convention as
+                    # cost_basis on a closed trade (fee-exclusive here, since
+                    # there's no closing fee yet to net against).
+                    "cost_value": lot.remaining_units * lot.unit_price,
                 }
             )
 

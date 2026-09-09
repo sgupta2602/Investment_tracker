@@ -127,7 +127,7 @@
     <li><strong class="text-slate-100">Cross-statement matching:</strong> matching runs across <em>every upload ever made</em>, not just one file -- a contract opened in one month's statement and closed in a much later one still matches correctly.</li>
     <li><strong class="text-slate-100">Partial fills:</strong> if a closing transaction is larger than the oldest lot, it consumes that lot fully and continues into the next-oldest lot -- can produce multiple closed-trade rows from one closing transaction.</li>
     <li><strong class="text-slate-100">Unmatched closes:</strong> if a close has no matching open lot in the uploaded history (usually because the position was opened before your earliest statement), it's flagged on the Review tab instead of silently guessed at.</li>
-    <li><strong class="text-slate-100">Open positions:</strong> any lot with remaining unmatched units at the end of processing shows up as a currently-open position.</li>
+    <li><strong class="text-slate-100">Open positions:</strong> any lot with remaining unmatched units at the end of processing shows up as a currently-open position. <strong class="text-slate-100">Cost Value</strong> (Units &times; Open Price) shows how much money is actually still at stake in each one, with a grand total across all open positions at the bottom of the table.</li>
   </ul>
 </div>
 

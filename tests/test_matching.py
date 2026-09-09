@@ -105,6 +105,8 @@ def test_partial_close_leaves_remaining_open_lot():
     assert result.closed_trades[0].quantity == 100  # 1 contract closed
     assert len(result.open_positions) == 1
     assert result.open_positions[0]["remaining_units"] == 200  # 2 contracts left open
+    # 200 units left at $1.00 opening price = $200 still at stake.
+    assert result.open_positions[0]["cost_value"] == pytest.approx(200.0)
 
 
 def test_unmatched_close_when_no_opening_leg_present():

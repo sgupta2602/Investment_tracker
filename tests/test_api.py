@@ -382,3 +382,24 @@ def test_reuploading_a_fully_duplicate_statement_creates_no_new_upload(client):
     # in the link text, once in the delete-confirm dialog string -- so
     # count the dashboard links instead of the raw filename string.)
     assert uploads.text.count('href="/dashboard/') == 1
+
+
+def test_still_open_positions_show_cost_value_and_grand_total(client):
+    """Cost Value = units * open price -- how much money is actually at
+    stake in a position with no closing trade yet. Plus a grand total
+    across all open positions, so the number that matters most (total
+    money at risk right now) doesn't require manual addition."""
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/05/2026","Buy to Open","AAA 06/19/2026 50.00 C","CALL AAA","2","$3.00","$0.00","-$600.00"\n'
+        '"01/06/2026","Buy to Open","BBB 06/19/2026 20.00 P","PUT BBB","1","$1.50","$0.00","-$150.00"\n'
+    )
+    dashboard = client.post("/upload", files={"file": ("open_positions.csv", csv_content, "text/csv")})
+
+    # AAA: 200 units (2 contracts * 100) * $3.00 = $600.00
+    assert "$600.00" in dashboard.text
+    # BBB: 100 units * $1.50 = $150.00
+    assert "$150.00" in dashboard.text
+    # Grand total across both: $750.00
+    assert "$750.00" in dashboard.text
+    assert "Total money at stake in open positions" in dashboard.text

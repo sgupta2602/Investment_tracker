@@ -302,6 +302,9 @@ def dashboard(request: Request, upload_id: int):
             "income_totals": income_totals(income_events),
             "unmatched_closes": match_result.unmatched_closes,
             "open_positions": match_result.open_positions,
+            "open_positions_cost_value": sum(
+                p["cost_value"] for p in match_result.open_positions
+            ),
         },
     )
 
