@@ -566,6 +566,72 @@ def test_delete_upload_removes_its_statement_and_trades(client):
     assert "Upload your broker transaction CSV" in home.text
 
 
+def test_bulk_delete_removes_multiple_selected_statements_in_one_go(client):
+    """The Overview page's checkbox-driven bulk delete: check several
+    statements, hit one 'Delete selected' button, and all of them go
+    away together instead of one confirm dialog per statement."""
+    with open(MULTI_MONTH_FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_A.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX222_B.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX333_C.csv", f, "text/csv")})
+
+    overview_before = client.get("/overview")
+    assert "Joint_Tenant_XX111_A.csv" in overview_before.text
+    assert "Joint_Tenant_XX222_B.csv" in overview_before.text
+    assert "Joint_Tenant_XX333_C.csv" in overview_before.text
+
+    resp = client.post("/delete_uploads", data={"upload_ids": ["1", "3"]}, follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/overview"
+
+    overview_after = client.get("/overview")
+    assert "Joint_Tenant_XX111_A.csv" not in overview_after.text  # deleted
+    assert "Joint_Tenant_XX333_C.csv" not in overview_after.text  # deleted
+    assert "Joint_Tenant_XX222_B.csv" in overview_after.text  # left alone
+
+
+def test_bulk_delete_all_statements_redirects_to_upload_form(client):
+    """Same 'nothing left -> go upload something' rule as the single
+    delete, just reached by selecting every checkbox."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("A.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("B.csv", f, "text/csv")})
+
+    resp = client.post("/delete_uploads", data={"upload_ids": ["1", "2"]}, follow_redirects=False)
+    assert resp.headers["location"] == "/upload"
+
+
+def test_bulk_delete_with_no_ids_selected_is_a_harmless_no_op(client):
+    """Submitting the bulk form with nothing checked (shouldn't normally
+    be reachable -- the button is disabled client-side -- but a direct
+    POST shouldn't wipe anything or error either."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("A.csv", f, "text/csv")})
+
+    resp = client.post("/delete_uploads", data={}, follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/overview"
+
+    overview = client.get("/overview")
+    assert "A.csv" in overview.text  # still there
+
+
+def test_overview_bulk_delete_ui_present(client):
+    """Sanity check the checkbox column, select-all, and bulk button
+    actually render."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("A.csv", f, "text/csv")})
+
+    overview = client.get("/overview")
+    assert 'id="select-all-uploads"' in overview.text
+    assert 'name="upload_ids" value="1"' in overview.text
+    assert 'id="bulk-delete-btn"' in overview.text
+    assert 'action="/delete_uploads"' in overview.text
+
+
 def _extract_trade_key(html: str, ticker: str) -> str:
     """Pulls the data-trade-key attribute for the first row matching a
     given ticker out of the rendered Trade Log HTML."""

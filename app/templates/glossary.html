@@ -325,4 +325,19 @@
   </ul>
 </div>
 
+<div class="mb-8">
+  <h3 class="font-semibold text-slate-200 mb-1">11. Deleting Statements (One or Several at Once)</h3>
+  <p class="text-sm text-slate-500 mb-4">
+    Both delete paths end up in the same place -- repository.delete_upload() removes a
+    statement's raw transactions and income events, then the matcher re-runs from scratch
+    across whatever uploads remain. That's the only correct way to un-wind a trade that
+    happened to span two statements (e.g. a Buy in one, its matching Sell in another).
+  </p>
+  <ul class="text-sm text-slate-300 space-y-2 list-disc pl-5">
+    <li><strong class="text-slate-100">One at a time:</strong> the dashboard's "Delete this statement" link, and each row's own "Delete" button on the Upload page and Overview's Uploaded Statements table, all delete a single statement immediately after one confirm.</li>
+    <li><strong class="text-slate-100">Several at once:</strong> Overview's Uploaded Statements table has a checkbox per row plus a "select all" checkbox in the header. Check as many as you want, then hit "Delete selected (N)" once -- one confirm dialog covers the whole batch instead of repeating it per statement. The matcher only re-runs once at the end, not once per deleted statement.</li>
+    <li><strong class="text-slate-100">Nothing selected is a no-op:</strong> the bulk button stays disabled until at least one row is checked, so there's no way to accidentally submit an empty batch.</li>
+  </ul>
+</div>
+
 {% endblock %}

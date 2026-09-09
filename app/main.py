@@ -263,6 +263,27 @@ def delete_upload(upload_id: int):
     return RedirectResponse(url="/overview", status_code=303)
 
 
+@app.post("/delete_uploads")
+async def delete_uploads(request: Request):
+    """Bulk sibling of /delete_upload/{id} -- lets you clear out several
+    old or duplicate statements in one confirm instead of one at a time.
+    Deletes each selected upload, then rebuilds closed_trades exactly
+    ONCE at the end rather than once per deletion: matching is always
+    re-derived from whatever uploads remain, so redoing that N times
+    would just be wasted work, not extra correctness."""
+    form = await request.form()
+    upload_ids = [int(v) for v in form.getlist("upload_ids") if v.strip().isdigit()]
+    for upload_id in upload_ids:
+        repo.delete_upload(upload_id)
+    if upload_ids:
+        _rebuild_closed_trades()
+
+    remaining = repo.list_uploads()
+    if not remaining:
+        return RedirectResponse(url="/upload", status_code=303)
+    return RedirectResponse(url="/overview", status_code=303)
+
+
 @app.post("/trade_annotation")
 async def save_trade_annotation(request: Request):
     """Auto-save endpoint for the Trade Log's editable Notes/Comments,

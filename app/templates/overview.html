@@ -155,12 +155,24 @@
 </div>
 
 <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
-  <h3 class="font-semibold text-slate-200 mb-3">Uploaded Statements</h3>
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+    <h3 class="font-semibold text-slate-200">Uploaded Statements</h3>
+    <button type="submit" form="bulk-delete-form" id="bulk-delete-btn" disabled
+            class="text-sm font-semibold text-rose-400 underline hover:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 rounded disabled:text-slate-600 disabled:no-underline disabled:cursor-not-allowed">
+      Delete selected (<span id="selected-count">0</span>)
+    </button>
+  </div>
+  <form id="bulk-delete-form" action="/delete_uploads" method="post" onsubmit="return confirmBulkDelete()">
   <div class="overflow-x-auto">
     <table class="min-w-full text-sm">
-      <caption class="sr-only">List of uploaded statements with a link to each period's detail dashboard</caption>
+      <caption class="sr-only">List of uploaded statements with a link to each period's detail dashboard, and checkboxes to delete several at once</caption>
       <thead class="bg-slate-800 text-slate-300">
         <tr>
+          <th scope="col" class="px-3 py-2 text-left">
+            <input type="checkbox" id="select-all-uploads" onchange="toggleAllUploads(this)"
+                   aria-label="Select all statements"
+                   class="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500">
+          </th>
           <th scope="col" class="px-3 py-2 text-left">Period</th>
           <th scope="col" class="px-3 py-2 text-left">File</th>
           <th scope="col" class="px-3 py-2 text-left">Account</th>
@@ -172,6 +184,11 @@
       <tbody>
         {% for u in uploads %}
         <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+          <td class="px-3 py-1">
+            <input type="checkbox" name="upload_ids" value="{{ u.id }}"
+                   class="upload-select-checkbox rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
+                   aria-label="Select {{ u.filename }} for deletion" onchange="updateBulkDeleteButton()">
+          </td>
           <td class="px-3 py-1 font-medium text-slate-100">{{ u.period_label }}</td>
           <td class="px-3 py-1 text-slate-300">{{ u.filename }}</td>
           <td class="px-3 py-1 text-slate-300">{{ u.account or "-" }}</td>
@@ -181,22 +198,53 @@
                href="/dashboard/{{ u.id }}">View period</a>
           </td>
           <td class="px-3 py-1">
-            <form action="/delete_upload/{{ u.id }}" method="post"
-                  onsubmit="return confirm('Delete {{ u.filename }}? This removes its transactions and re-runs matching across the rest of your history. This cannot be undone.');">
-              <button type="submit"
-                      class="text-rose-400 font-semibold underline hover:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 rounded">
-                Delete
-              </button>
-            </form>
+            <button type="button" onclick="deleteSingleUpload({{ u.id }}, {{ u.filename | tojson }})"
+                    class="text-rose-400 font-semibold underline hover:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 rounded">
+              Delete
+            </button>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  </form>
+  <form id="single-delete-form" method="post" action="" hidden></form>
 </div>
 
 <script>
+  function toggleAllUploads(checkbox) {
+    document.querySelectorAll(".upload-select-checkbox").forEach((cb) => { cb.checked = checkbox.checked; });
+    updateBulkDeleteButton();
+  }
+
+  function updateBulkDeleteButton() {
+    const checked = document.querySelectorAll(".upload-select-checkbox:checked").length;
+    const total = document.querySelectorAll(".upload-select-checkbox").length;
+    document.getElementById("selected-count").textContent = checked;
+    document.getElementById("bulk-delete-btn").disabled = checked === 0;
+    const selectAll = document.getElementById("select-all-uploads");
+    selectAll.checked = checked > 0 && checked === total;
+    selectAll.indeterminate = checked > 0 && checked < total;
+  }
+
+  function confirmBulkDelete() {
+    const checked = document.querySelectorAll(".upload-select-checkbox:checked").length;
+    return confirm(
+      `Delete ${checked} statement${checked !== 1 ? "s" : ""}? This removes ` +
+      "their transactions and re-runs matching across the rest of your history. This cannot be undone."
+    );
+  }
+
+  function deleteSingleUpload(uploadId, filename) {
+    if (!confirm(`Delete ${filename}? This removes its transactions and re-runs matching across the rest of your history. This cannot be undone.`)) {
+      return;
+    }
+    const form = document.getElementById("single-delete-form");
+    form.action = "/delete_upload/" + uploadId;
+    form.submit();
+  }
+
   function navigateOverview() {
     const account = document.getElementById("account-select").value;
     window.location = "/overview" + (account ? "?account=" + encodeURIComponent(account) : "");
