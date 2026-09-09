@@ -58,7 +58,7 @@
         <th scope="col" class="px-2 py-2 text-left">Buy Date</th>
         <th scope="col" class="px-2 py-2 text-right">Realized Value</th>
         <th scope="col" class="px-2 py-2 text-right">Cost Basis</th>
-        <th scope="col" class="px-2 py-2 text-right">Hold (mo)</th>
+        <th scope="col" class="px-2 py-2 text-right">Hold (days)</th>
         <th scope="col" class="px-2 py-2 text-right">Gain/Loss</th>
         <th scope="col" class="px-2 py-2 text-right">% Gain/Loss</th>
         <th scope="col" class="px-2 py-2 text-right">Gain/Month</th>
@@ -93,7 +93,7 @@
         <td class="px-2 py-1 text-slate-300">{{ t.buy_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.realized_value | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_basis | usd }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ "%.2f"|format(t.hold_period_months) }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ (t.sell_date - t.buy_date).days }}</td>
         <td class="px-2 py-1 text-right font-semibold {{ 'text-emerald-400' if t.gain_loss >= 0 else 'text-rose-400' }}">{{ t.gain_loss | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.pct_gain_loss | pct }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.gain_per_month | pct }}</td>

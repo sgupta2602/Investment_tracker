@@ -53,9 +53,14 @@
           <td class="px-3 py-2 text-slate-400">Return on the trade as a percentage. 0% if cost basis is 0.</td>
         </tr>
         <tr>
-          <td class="px-3 py-2 font-semibold text-slate-100">Holding Period (months)</td>
+          <td class="px-3 py-2 font-semibold text-slate-100">Hold (days) <span class="text-slate-500 font-normal">(Trade Log column)</span></td>
+          <td class="px-3 py-2 text-cyan-300"><code>(sell_date &minus; buy_date).days</code></td>
+          <td class="px-3 py-2 text-slate-400">Exact days held. Used to display, not for the Gain/Month math below -- that still uses the internal months figure so the rate stays comparable across trades.</td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold text-slate-100">Holding Period (months) <span class="text-slate-500 font-normal">(internal, Gain/Month only)</span></td>
           <td class="px-3 py-2 text-cyan-300"><code>(sell_date &minus; buy_date).days &divide; 30</code></td>
-          <td class="px-3 py-2 text-slate-400">Approximate months held -- a simple day/30 conversion, not calendar-month-aware.</td>
+          <td class="px-3 py-2 text-slate-400">Approximate months held -- a simple day/30 conversion, not calendar-month-aware. Not shown directly anywhere; it only feeds the Gain/Month calculation below.</td>
         </tr>
         <tr>
           <td class="px-3 py-2 font-semibold text-slate-100">Gain / Month</td>
@@ -185,9 +190,9 @@
           <td class="px-3 py-2 font-semibold text-slate-100">Avg Hold Period</td>
           <td class="px-3 py-2 text-cyan-300"><code>average(Sell Date &minus; Buy Date, in days)</code></td>
           <td class="px-3 py-2 text-slate-400">
-            Computed directly in days, not from the Trade Log's Hold Period Months column --
-            that column is itself a /30 approximation, so averaging days straight from the
-            actual dates avoids compounding that rounding.
+            Computed directly in days, matching the Trade Log's own Hold (days) column --
+            both come straight from the actual dates, rather than the internal /30
+            "Holding Period (months)" approximation used only for the Gain/Month formula.
           </td>
         </tr>
         <tr>
