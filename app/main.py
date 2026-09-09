@@ -149,7 +149,15 @@ def upload_form(request: Request):
     """Always shows the upload form -- distinct from '/' so that once
     data exists, there's still a real way back here to add another
     month's statement (previously this was a dead loop)."""
-    return templates.TemplateResponse(request, "upload.html", {"uploads": repo.list_uploads()})
+    all_duplicate = request.query_params.get("all_duplicate")
+    return templates.TemplateResponse(
+        request,
+        "upload.html",
+        {
+            "uploads": repo.list_uploads(),
+            "all_duplicate_skipped": int(all_duplicate) if all_duplicate else None,
+        },
+    )
 
 
 @app.post("/upload")
@@ -165,17 +173,34 @@ async def upload_csv(file: UploadFile = File(...)):
     finally:
         tmp_path.unlink(missing_ok=True)
 
-    upload_id = repo.create_upload(file.filename, account)
-    for t in transactions:
-        t.upload_id = upload_id
-    repo.save_raw_transactions(upload_id, transactions)
+    # Skip transactions already present from an earlier upload. Handles
+    # broker export styles that re-include the whole year every time (a
+    # "Jan 1 to today" download re-uploaded in November re-includes
+    # everything from an earlier "Jan 1 to September" upload verbatim) --
+    # without this, those rows would get counted twice in every total.
+    existing_keys = repo.load_all_transaction_keys()
+    new_transactions = [t for t in transactions if repo.transaction_key(t) not in existing_keys]
+    duplicate_count = len(transactions) - len(new_transactions)
 
-    income_events = extract_income_events(transactions)
+    if not new_transactions:
+        # Nothing new at all -- don't create an empty upload record just
+        # to immediately be useless clutter in the uploads list.
+        return RedirectResponse(url=f"/upload?all_duplicate={duplicate_count}", status_code=303)
+
+    upload_id = repo.create_upload(file.filename, account)
+    for t in new_transactions:
+        t.upload_id = upload_id
+    repo.save_raw_transactions(upload_id, new_transactions)
+
+    income_events = extract_income_events(new_transactions)
     repo.save_income_events(upload_id, income_events)
 
     _rebuild_closed_trades()
 
-    return RedirectResponse(url=f"/dashboard/{upload_id}", status_code=303)
+    return RedirectResponse(
+        url=f"/dashboard/{upload_id}?added={len(new_transactions)}&skipped={duplicate_count}",
+        status_code=303,
+    )
 
 
 def _rebuild_closed_trades() -> None:
@@ -251,6 +276,9 @@ def dashboard(request: Request, upload_id: int):
     match_result = match_transactions(repo.load_all_transactions())
     ticker_breakdown = performance_by_ticker(month_trades)
     top_tickers, bottom_tickers = top_bottom_tickers(ticker_breakdown)
+    accounts = sorted({t["account"] for t in all_trades if t.get("account")})
+    added = request.query_params.get("added")
+    skipped = request.query_params.get("skipped")
 
     return templates.TemplateResponse(
         request,
@@ -259,6 +287,9 @@ def dashboard(request: Request, upload_id: int):
             "uploads": uploads,
             "current_upload_id": upload_id,
             "all_trades": all_trades,
+            "accounts": accounts,
+            "added_count": int(added) if added else None,
+            "skipped_count": int(skipped) if skipped else 0,
             "month_trades": month_trades,
             "performance": monthly_performance(month_trades),
             "performance_stats": performance_stats(month_trades),

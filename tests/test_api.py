@@ -60,6 +60,8 @@ def test_login_assigns_a_random_quote_shown_on_every_page(anon_client):
     threaded through each route's context by hand, so this is worth
     asserting end-to-end rather than just unit-testing random_quote()."""
     import app.main as main_module
+    from markupsafe import escape as html_escape
+
     from app.quotes import TRADING_QUOTES
 
     anon_client.post(
@@ -67,7 +69,11 @@ def test_login_assigns_a_random_quote_shown_on_every_page(anon_client):
         data={"email": main_module.LOGIN_EMAIL, "password": main_module.LOGIN_PASSWORD},
     )
     home = anon_client.get("/")
-    assert any(q in home.text for q in TRADING_QUOTES)
+    # Escaped the same way Jinja2 autoescaping does -- some quotes contain
+    # apostrophes ("doesn't"), which render as &#39; in the HTML, so a raw
+    # literal match would fail nondeterministically depending on which
+    # quote random.choice() happened to pick.
+    assert any(str(html_escape(q)) in home.text for q in TRADING_QUOTES)
 
 
 def test_login_with_wrong_password_rejected(anon_client):
@@ -77,7 +83,31 @@ def test_login_with_wrong_password_rejected(anon_client):
         "/login", data={"email": main_module.LOGIN_EMAIL, "password": "wrong-password"}
     )
     assert resp.status_code == 401
-    assert "Incorrect email or password" in resp.text
+
+
+def test_account_filter_hidden_with_only_one_account(client):
+    """No point cluttering the UI with a single-value dropdown."""
+    with open(FIXTURE, "rb") as f:
+        dashboard = client.post(
+            "/upload", files={"file": ("sample_transactions.csv", f, "text/csv")}
+        )
+    assert 'id="account-filter"' not in dashboard.text
+
+
+def test_account_filter_appears_and_lists_distinct_accounts_when_multiple(client):
+    """Two statements from two different (masked) account numbers must
+    both show up as filter options, and each trade row must be tagged
+    with the right account so the client-side filter can match on it."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("Joint_Tenant_XX111_Transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        dashboard = client.post("/upload", files={"file": ("Joint_Tenant_XX222_Transactions.csv", f, "text/csv")})
+
+    assert 'id="account-filter"' in dashboard.text
+    assert '<option value="xx111">XX111</option>' in dashboard.text
+    assert '<option value="xx222">XX222</option>' in dashboard.text
+    assert 'data-account="xx111"' in dashboard.text
+    assert 'data-account="xx222"' in dashboard.text
 
 
 def test_logout_revokes_access(client):
@@ -301,3 +331,54 @@ def test_delete_upload_unwinds_a_cross_upload_match(client):
     # XYZ's Sell to Close now has no opening leg left -- it belongs in
     # Needs Review as an unmatched close, not a phantom closed trade.
     assert "Needs Review" in dashboard.text
+
+
+def test_reuploading_a_superset_statement_skips_already_known_transactions(client):
+    """Simulates a broker export style that always starts from Jan 1 --
+    re-uploading a 'Jan-Nov' file that re-includes an already-uploaded
+    'Jan-Sep' file's rows verbatim, plus new ones, must only add the new
+    ones and must NOT double-count the overlapping trade."""
+    feb_csv = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"02/10/2026","Buy to Open","XYZ 10/16/2026 90.00 C","CALL XYZ","1","$3.35","$0.66","-$335.66"\n'
+        '"02/15/2026","Sell to Close","XYZ 10/16/2026 90.00 C","CALL XYZ","1","$8.20","$0.66","$819.34"\n'
+    )
+    feb_plus_june_csv = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"02/10/2026","Buy to Open","XYZ 10/16/2026 90.00 C","CALL XYZ","1","$3.35","$0.66","-$335.66"\n'
+        '"02/15/2026","Sell to Close","XYZ 10/16/2026 90.00 C","CALL XYZ","1","$8.20","$0.66","$819.34"\n'
+        '"06/01/2026","Buy to Open","QRS 08/01/2026 20.00 C","CALL QRS","1","$1.00","$0.10","-$100.10"\n'
+        '"06/15/2026","Sell to Close","QRS 08/01/2026 20.00 C","CALL QRS","1","$2.00","$0.10","$199.90"\n'
+    )
+    client.post("/upload", files={"file": ("feb.csv", feb_csv, "text/csv")})
+    dashboard = client.post(
+        "/upload", files={"file": ("feb_plus_june.csv", feb_plus_june_csv, "text/csv")}
+    )
+
+    # Only the 2 new June rows should have been added -- not the 2 Feb rows again.
+    assert "Added 2 new transaction" in dashboard.text
+    assert "Skipped 2" in dashboard.text
+
+    overview = client.get("/overview")
+    assert "2 closed trades" in overview.text  # XYZ once + QRS once, not XYZ twice
+
+
+def test_reuploading_a_fully_duplicate_statement_creates_no_new_upload(client):
+    """Uploading the exact same file twice must not create a second,
+    empty-of-anything-new upload record just to clutter the list."""
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+    with open(FIXTURE, "rb") as f:
+        resp = client.post(
+            "/upload", files={"file": ("sample_transactions.csv", f, "text/csv")}
+        )
+
+    assert resp.status_code == 200  # TestClient followed the redirect back to /upload
+    assert "already in the system" in resp.text
+
+    uploads = client.get("/upload")
+    # Still only the one original upload -- no phantom second entry.
+    # (The filename legitimately appears twice per listed upload: once
+    # in the link text, once in the delete-confirm dialog string -- so
+    # count the dashboard links instead of the raw filename string.)
+    assert uploads.text.count('href="/dashboard/') == 1

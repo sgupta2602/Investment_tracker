@@ -24,6 +24,8 @@ class _Lot:
     unit_price: float
     fee_per_unit: float
     ticker: str
+    account: str = "UNKNOWN"
+    symbol: str = ""
     expiration: Optional[datetime] = None
     strike: Optional[float] = None
     right: Optional[str] = None
@@ -54,7 +56,14 @@ class MatchResult:
 
 
 def _lot_key(txn: Transaction) -> str:
-    return txn.symbol.strip()
+    """Groups opening/closing legs into the same FIFO queue -- keyed by
+    BOTH account and symbol, not symbol alone. Without the account
+    component, a Buy to Open in one account could incorrectly get
+    matched against a Sell to Close in a completely different account
+    that happens to trade the identical contract (same ticker/strike/
+    expiration/right), producing a phantom trade that mixes two
+    unrelated accounts' positions."""
+    return f"{txn.account or 'UNKNOWN'}|{txn.symbol.strip()}"
 
 
 def _units_and_ticker(txn: Transaction) -> tuple[float, str]:
@@ -86,6 +95,8 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
                     txn.price,
                     fee_per_unit,
                     ticker=ticker,
+                    account=txn.account or "UNKNOWN",
+                    symbol=txn.symbol.strip(),
                     expiration=txn.expiration,
                     strike=txn.strike,
                     right=txn.right,
@@ -135,6 +146,7 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
                         "date": txn.date,
                         "symbol": txn.symbol,
                         "ticker": ticker,
+                        "account": txn.account or "UNKNOWN",
                         "expiration": txn.expiration,
                         "strike": txn.strike,
                         "right": txn.right,
@@ -149,8 +161,9 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
         for lot in queue:
             result.open_positions.append(
                 {
-                    "symbol": key,
+                    "symbol": lot.symbol,
                     "ticker": lot.ticker,
+                    "account": lot.account,
                     "expiration": lot.expiration,
                     "strike": lot.strike,
                     "right": lot.right,

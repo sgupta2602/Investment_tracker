@@ -26,6 +26,40 @@ def test_matches_option_buy_to_open_with_sell_to_close(transactions):
     assert abcd.account == "TEST123"
 
 
+def test_same_contract_in_two_different_accounts_does_not_cross_match():
+    """Regression: _lot_key() used to be symbol-only, so a Buy to Open in
+    one account could get matched against a Sell to Close in a totally
+    different account that happened to trade the identical contract
+    (same ticker/strike/expiration/right) -- producing a phantom trade
+    that mixes two unrelated accounts. Must stay two independent lots."""
+    common = dict(
+        symbol="SHRD 06/19/2026 50.00 C",
+        description="CALL SHRD",
+        underlying="SHRD",
+        expiration=datetime(2026, 6, 19),
+        strike=50.0,
+        right="C",
+    )
+    buy_account_a = Transaction(
+        date=datetime(2026, 1, 5), action="Buy to Open", quantity=1, price=1.0, fees=0.0,
+        amount=-100.0, account="ACCOUNT_A", **common,
+    )
+    sell_account_b = Transaction(
+        date=datetime(2026, 2, 1), action="Sell to Close", quantity=1, price=3.0, fees=0.0,
+        amount=300.0, account="ACCOUNT_B", **common,
+    )
+    result = match_transactions([buy_account_a, sell_account_b])
+
+    # Must NOT have matched into a closed trade across accounts.
+    assert result.closed_trades == []
+    # Account A's buy is still open -- nothing in Account A closed it.
+    assert len(result.open_positions) == 1
+    assert result.open_positions[0]["account"] == "ACCOUNT_A"
+    # Account B's sell has no opening trade in ITS account -- unmatched.
+    assert len(result.unmatched_closes) == 1
+    assert result.unmatched_closes[0]["account"] == "ACCOUNT_B"
+
+
 def test_expired_options_close_automatically_at_zero_realized_value(transactions):
     """An expired contract's Price/Fees/Amount are blank in the broker
     export -- the money parser reads blank as 0.0, so 'Expired' closes the

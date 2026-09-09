@@ -8,6 +8,14 @@
     Quantity, Price, Fees &amp; Comm, Amount) and upload it here. We'll match opening and
     closing trades, compute gains/losses, holding periods, and estimated tax automatically.
   </p>
+  {% if all_duplicate_skipped %}
+  <div class="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+    That file's {{ all_duplicate_skipped }} transaction{{ 's' if all_duplicate_skipped != 1 }} 
+    {{ 'are' if all_duplicate_skipped != 1 else 'is' }} already in the system -- nothing new to
+    add, so no statement was created. If you meant to add new data, check that you uploaded
+    the right file.
+  </div>
+  {% endif %}
   <form action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
     <div>
       <label for="file" class="block text-sm font-semibold mb-1 text-slate-300">Transaction CSV file</label>

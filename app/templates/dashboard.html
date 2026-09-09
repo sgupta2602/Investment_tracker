@@ -2,6 +2,13 @@
 {% block title %}Dashboard - Investment Tracker{% endblock %}
 {% block content %}
 
+{% if added_count %}
+<div class="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+  Added {{ added_count }} new transaction{{ 's' if added_count != 1 }}.
+  {% if skipped_count %}Skipped {{ skipped_count }} that {{ 'were' if skipped_count != 1 else 'was' }} already in the system (likely overlap with a previous statement).{% endif %}
+</div>
+{% endif %}
+
 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
   <div>
     <label for="upload-select" class="text-sm font-medium mr-2 text-slate-300">Viewing period:</label>

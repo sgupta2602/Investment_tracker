@@ -109,6 +109,45 @@ def load_all_transactions() -> list[Transaction]:
     return transactions
 
 
+def transaction_key(t: Transaction) -> str:
+    """Deterministic identity for a raw broker transaction row, used to
+    skip re-inserting duplicates when a new upload's date range overlaps
+    an existing one -- e.g. a broker export style that always starts
+    from Jan 1 (so a 'Jan-Nov' download re-includes everything from an
+    earlier 'Jan-Sep' upload verbatim). Built purely from the row's own
+    content plus account (so the same-looking row in two DIFFERENT
+    accounts is correctly treated as two distinct transactions, not a
+    duplicate) -- deliberately excludes upload_id, which is exactly the
+    thing that differs between the 'same' transaction seen twice.
+    Collision risk (two genuinely different real transactions sharing
+    every one of these fields) is accepted as a YAGNI trade-off, same
+    reasoning as trade_key() above. Numeric fields are cast to float so
+    a freshly-parsed row (always float) and one round-tripped through
+    SQLite (also always float) can never mismatch on int-vs-float
+    string formatting ("1" vs "1.0")."""
+    return "|".join(
+        str(x)
+        for x in [
+            t.account,
+            _fmt_dt(t.date),
+            t.action,
+            t.symbol,
+            t.description,
+            float(t.quantity),
+            float(t.price),
+            float(t.fees),
+            float(t.amount),
+        ]
+    )
+
+
+def load_all_transaction_keys() -> set[str]:
+    """Every transaction_key() currently in the system, across all
+    uploads -- used by the upload route to filter out duplicates from a
+    newly-uploaded file before saving it."""
+    return {transaction_key(t) for t in load_all_transactions()}
+
+
 def replace_closed_trades(enriched_trades: list[dict]) -> None:
     """Recomputing cumulative columns means the *whole* closed_trades
     table gets rebuilt on every upload. Data volumes here are personal
