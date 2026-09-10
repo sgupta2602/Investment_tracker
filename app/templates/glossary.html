@@ -110,6 +110,7 @@
     <li><strong class="text-slate-100">Long-term</strong> (held more than {{ long_term_threshold_days }} days): flat <strong class="text-slate-100">{{ long_term_rate | pct }}</strong>.</li>
     <li><strong class="text-slate-100">Short-term</strong> (held {{ long_term_threshold_days }} days or fewer): flat <strong class="text-slate-100">{{ short_term_rate | pct }}</strong>.</li>
     <li>Tax only ever applies to <strong class="text-slate-100">gains</strong> at the per-trade level -- a loss never generates a negative tax / refund on its own row.</li>
+    <li><strong class="text-slate-100">Real elapsed days, not calendar months or years:</strong> the {{ long_term_threshold_days }}-day cutoff is a straight day-count between actual Buy and Sell dates, so it's automatically correct even when a trade crosses a calendar year boundary (e.g. opened Dec 2025, closed Feb 2026 is ~60 days -- still Short-term, not "two different tax years" or "one year held").</li>
   </ul>
 </div>
 
@@ -129,7 +130,7 @@
     <li><strong class="text-slate-100">Options multiplier:</strong> option contract quantities are converted to underlying-share-equivalent units by multiplying by <strong class="text-slate-100">{{ option_multiplier }}</strong> before matching (1 contract = {{ option_multiplier }} units).</li>
     <li><strong class="text-slate-100">Opening action:</strong> <code>Buy to Open</code> only.</li>
     <li><strong class="text-slate-100">Closing action:</strong> <code>Sell to Close</code> or <code>Expired</code>. An expired contract's Price/Fees/Amount are blank in the broker export -- the parser reads a blank money field as $0, so an expired contract closes automatically at $0 realized value (a total loss of the premium paid), matched against its opening lot exactly like a real sale. This is what keeps expired contracts from getting stuck showing up as still-open positions.</li>
-    <li><strong class="text-slate-100">Cross-statement matching:</strong> matching runs across <em>every upload ever made</em>, not just one file -- a contract opened in one month's statement and closed in a much later one still matches correctly.</li>
+    <li><strong class="text-slate-100">Cross-statement matching:</strong> matching runs across <em>every upload ever made</em>, not just one file -- a contract opened in one month's statement (say January) and closed in a much later one (say March) still matches correctly into a single closed trade the moment <em>both</em> legs exist in the system, regardless of which statement each came from or how far apart in time they are. Until the closing statement is uploaded, that January leg just sits as an <strong class="text-slate-100">open position</strong> on the Needs Review tab -- the instant the March close arrives, re-matching (which runs fresh on every upload/delete) picks it up automatically and moves it into Trade Log as a normal closed row, no manual step required. See the next section for exactly which statement/month that resulting row gets filed under.</li>
     <li><strong class="text-slate-100">Partial fills:</strong> if a closing transaction is larger than the oldest lot, it consumes that lot fully and continues into the next-oldest lot -- can produce multiple closed-trade rows from one closing transaction.</li>
     <li><strong class="text-slate-100">Unmatched closes:</strong> if a close has no matching open lot in the uploaded history (usually because the position was opened before your earliest statement), it's flagged on the Review tab instead of silently guessed at.</li>
     <li><strong class="text-slate-100">Open positions:</strong> any lot with remaining unmatched units at the end of processing shows up as a currently-open position. <strong class="text-slate-100">Cost Value</strong> (Units &times; Open Price) shows how much money is actually still at stake in each one, with a grand total across all open positions at the bottom of the table.</li>
@@ -224,6 +225,21 @@
             upload) -- Year-over-Year is the exact same grouping logic as Month-over-Month, just
             rolled up one level coarser for spotting multi-year trends a month-by-month bar chart
             is too noisy to show.
+          </td>
+        </tr>
+        <tr>
+          <td class="px-3 py-2 font-semibold text-slate-100">A trade opened in one month, closed in another</td>
+          <td class="px-3 py-2 text-cyan-300"><code>always filed by Sell Date, never Buy Date</code></td>
+          <td class="px-3 py-2 text-slate-400">
+            E.g. opened in January, closed in March: it's still just <strong class="text-slate-200">one</strong>
+            closed-trade row (Buy Date Jan, Sell Date Mar, real day-count Hold Period spanning both), and
+            every calendar-based view -- Month-by-Month, Month-over-Month/Year-over-Year, the dashboard's
+            "Filter by month" checkboxes -- files it under <strong class="text-slate-200">March</strong>,
+            not January. Separately, when Viewing period is pinned to <strong class="text-slate-200">one
+            specific statement</strong> (not "All periods"), the row shows up under whichever statement
+            contained the <strong class="text-slate-200">closing</strong> transaction -- the March
+            statement -- even though the position was opened in a January one. Pick "All periods
+            (combined)" if a trade like this seems to be missing from where you expected it.
           </td>
         </tr>
         <tr>
@@ -337,6 +353,7 @@
     <li><strong class="text-slate-100">One at a time:</strong> the dashboard's "Delete this statement" link, and each row's own "Delete" button on the Upload page and Overview's Uploaded Statements table, all delete a single statement immediately after one confirm.</li>
     <li><strong class="text-slate-100">Several at once:</strong> Overview's Uploaded Statements table has a checkbox per row plus a "select all" checkbox in the header. Check as many as you want, then hit "Delete selected (N)" once -- one confirm dialog covers the whole batch instead of repeating it per statement. The matcher only re-runs once at the end, not once per deleted statement.</li>
     <li><strong class="text-slate-100">Nothing selected is a no-op:</strong> the bulk button stays disabled until at least one row is checked, so there's no way to accidentally submit an empty batch.</li>
+    <li><strong class="text-slate-100">Watch out for cross-statement trades:</strong> per the FIFO Matching section above, a trade can be opened in one statement and closed in a later one. Deleting the <em>earlier</em> statement (the one with the opening leg) while the later closing statement stays -- e.g. clearing out an "old" January upload that turns out to hold the open half of a trade closed in March -- un-matches that trade. The March close then reappears as an <strong class="text-slate-100">unmatched close</strong> on Needs Review instead of a normal Trade Log row, since its opening lot no longer exists anywhere in the system. Nothing is lost or corrupted (the March transaction itself is untouched), but the trade's history is genuinely incomplete until you either restore the January statement or accept the gap.</li>
   </ul>
 </div>
 
