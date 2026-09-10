@@ -97,6 +97,7 @@
         data-sell-date="{{ t.sell_date.strftime('%Y-%m-%d') }}"
         data-equity-type="{{ t.equity_type|lower }}"
         data-gain-loss="{{ t.gain_loss }}"
+        data-est-tax="{{ t.estimated_tax }}"
         class="border-t border-slate-800 hover:bg-slate-800/50 {% if t.upload_id == current_upload_id %}bg-cyan-950/40{% endif %}"
       >
         <td class="px-2 py-1 text-right text-slate-500">{{ loop.index }}</td>
@@ -149,12 +150,15 @@
       <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
         <td colspan="14" class="px-2 py-2 text-right text-slate-300">Total Gain/Loss <span id="trade-log-total-label" class="font-normal text-slate-500"></span></td>
         <td id="trade-log-total-gain" class="px-2 py-2 text-right">$0.00</td>
-        <td colspan="9"></td>
+        <td colspan="4"></td>
+        <td class="px-2 py-2 text-right text-slate-300">Total Est. Tax</td>
+        <td id="trade-log-total-tax" class="px-2 py-2 text-right text-slate-300">$0.00</td>
+        <td colspan="3"></td>
       </tr>
     </tfoot>
   </table>
 </div>
-<p class="text-xs text-slate-500 mt-2">Rows highlighted in teal belong to the period currently selected above. Filtering only changes what's shown -- the per-row Cum. Gain / Cum. Gain % / Est. Tax columns stay based on your full trade history either way. The <strong class="text-slate-300">Total Gain/Loss</strong> row at the bottom of the table is the one number that DOES react to your filters -- it's the sum of just the currently visible rows, so you can filter down to a ticker, a date range, or Options/Shares only, and see that slice's total on its own.</p>
+<p class="text-xs text-slate-500 mt-2">Rows highlighted in teal belong to the period currently selected above. Filtering only changes what's shown -- the per-row Cum. Gain / Cum. Gain % columns stay based on your full trade history either way. The <strong class="text-slate-300">Total Gain/Loss</strong> and <strong class="text-slate-300">Est. Tax</strong> totals at the bottom of the table are the two numbers that DO react to your filters -- both are the sum of just the currently visible rows, so you can filter down to a ticker, a date range, or Options/Shares only, and see that slice's totals on their own.</p>
 <p class="text-xs text-slate-500 mt-1">Recommended By / Reason / Notes save automatically when you click away from the field (border flashes green on success, red on failure) -- no submit button, no page reload. Fill in Recommended By to see who's actually contributing to your P&amp;L on the Overview page.</p>
 <script>
   async function saveAnnotation(el) {
@@ -192,6 +196,7 @@
     const rows = document.querySelectorAll("#trade-log-body tr[data-ticker]");
     let visible = 0;
     let totalGain = 0;
+    let totalTax = 0;
     rows.forEach((row) => {
       const matchesTicker = !search || row.dataset.ticker.includes(search);
       const matchesFrom = !from || row.dataset.sellDate >= from;
@@ -202,6 +207,7 @@
       if (show) {
         visible++;
         totalGain += parseFloat(row.dataset.gainLoss);
+        totalTax += parseFloat(row.dataset.estTax);
       }
     });
     document.getElementById("trade-log-count").textContent = visible + " of " + rows.length + " trades shown";
@@ -212,6 +218,7 @@
     totalCell.textContent = formatUsd(totalGain);
     totalCell.classList.remove("text-emerald-400", "text-rose-400");
     totalCell.classList.add(totalGain >= 0 ? "text-emerald-400" : "text-rose-400");
+    document.getElementById("trade-log-total-tax").textContent = formatUsd(totalTax);
     document.getElementById("trade-log-total-label").textContent =
       visible === rows.length ? "" : "(" + visible + " filtered trade" + (visible !== 1 ? "s" : "") + ")";
   }

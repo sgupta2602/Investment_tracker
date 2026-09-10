@@ -494,6 +494,22 @@ def test_trade_log_has_a_live_total_gain_loss_footer_row(client):
     assert "totalGain" in resp.text  # the summing logic itself is present
 
 
+def test_trade_log_has_a_live_total_est_tax_footer_row(client):
+    """Same reasoning and same live-filtering behavior as the Total
+    Gain/Loss footer, just for Est. Tax -- lets you see the tax bill for
+    just a filtered slice (a ticker, a date range, Options vs Shares)."""
+    with open(FIXTURE, "rb") as f:
+        resp = client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+
+    assert 'id="trade-log-total-tax"' in resp.text
+    assert "Total Est. Tax" in resp.text
+    # OLDCO (long-term, 20%), ABCD (short-term, 37%), WXYZ (a loss -> $0 tax).
+    assert 'data-est-tax="99.80000000000001"' in resp.text
+    assert 'data-est-tax="147.02319999999997"' in resp.text
+    assert 'data-est-tax="0.0"' in resp.text
+    assert "totalTax" in resp.text
+
+
 def test_home_redirects_to_latest_upload_after_data_exists(client):
     with open(FIXTURE, "rb") as f:
         client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
