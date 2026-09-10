@@ -126,6 +126,7 @@
         data-ticker="{{ p.ticker|lower }}"
         data-open-date="{{ p.open_date.strftime('%Y-%m-%d') }}"
         data-equity-type="{{ p.equity_type|lower }}"
+        data-cost-value="{{ p.cost_value }}"
         class="border-t border-slate-800 hover:bg-slate-800/50"
       >
         <td class="px-3 py-1 text-right text-slate-500">{{ loop.index }}</td>
@@ -147,14 +148,19 @@
     </tbody>
     <tfoot>
       <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
-        <td colspan="{{ 10 if accounts|length > 1 else 9 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake in open positions</td>
-        <td class="px-3 py-2 text-right text-amber-300">{{ open_positions_cost_value | usd }}</td>
+        <td colspan="{{ 10 if accounts|length > 1 else 9 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake <span id="open-positions-total-label" class="font-normal text-slate-500"></span></td>
+        <td id="open-positions-total-cost-value" class="px-3 py-2 text-right text-amber-300">{{ open_positions_cost_value | usd }}</td>
       </tr>
     </tfoot>
   </table>
 </div>
-<p class="text-xs text-slate-500 mt-2">Filtering only changes what's shown -- the total above always reflects every open position, not just the filtered ones.</p>
+<p class="text-xs text-slate-500 mt-2">Filtering only changes what's shown -- and now so does this total: it's the sum of just the currently visible open positions, so filtering to Shares only (or Options only, a ticker, or a date range) shows that slice's money-at-stake on its own instead of everything combined.</p>
 <script>
+  function formatUsd(value) {
+    const sign = value < 0 ? "-$" : "$";
+    return sign + Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
   function filterOpenPositions() {
     const search = document.getElementById("open-ticker-search").value.trim().toLowerCase();
     const from = document.getElementById("open-date-from").value;
@@ -162,6 +168,7 @@
     const equityType = document.getElementById("open-equity-type-filter").value;
     const rows = document.querySelectorAll("#open-positions-body tr[data-ticker]");
     let visible = 0;
+    let totalCostValue = 0;
     rows.forEach((row) => {
       const matchesTicker = !search || row.dataset.ticker.includes(search);
       const matchesFrom = !from || row.dataset.openDate >= from;
@@ -169,11 +176,18 @@
       const matchesEquityType = !equityType || row.dataset.equityType === equityType;
       const show = matchesTicker && matchesFrom && matchesTo && matchesEquityType;
       row.hidden = !show;
-      if (show) visible++;
+      if (show) {
+        visible++;
+        totalCostValue += parseFloat(row.dataset.costValue);
+      }
     });
     document.getElementById("open-positions-count").textContent = visible + " of " + rows.length + " positions shown";
     const emptyRow = document.getElementById("open-positions-empty-row");
     if (emptyRow) emptyRow.hidden = visible !== 0;
+
+    document.getElementById("open-positions-total-cost-value").textContent = formatUsd(totalCostValue);
+    document.getElementById("open-positions-total-label").textContent =
+      visible === rows.length ? "" : "(" + visible + " filtered position" + (visible !== 1 ? "s" : "") + ")";
   }
 
   function clearOpenPositionFilters() {

@@ -872,7 +872,7 @@ def test_still_open_positions_show_cost_value_and_grand_total(client):
     assert "$150.00" in dashboard.text
     # Grand total across both: $750.00
     assert "$750.00" in dashboard.text
-    assert "Total money at stake in open positions" in dashboard.text
+    assert "Total money at stake" in dashboard.text
 
 
 def test_still_open_positions_carry_search_and_date_filter_attributes(client):
@@ -907,6 +907,24 @@ def test_open_stock_position_shows_equity_type_distinct_from_open_option(client)
     assert 'data-equity-type="options"' in dashboard.text
     assert 'data-equity-type="shares"' in dashboard.text
     assert 'id="open-equity-type-filter"' in dashboard.text
+
+
+def test_open_positions_total_carries_cost_value_for_live_filtering(client):
+    """Regression guard: the 'Total money at stake' footer used to be a
+    fixed server-rendered number that ignored the Type/ticker/date
+    filters entirely. It's now live JS, summing data-cost-value across
+    whichever rows are currently visible -- this asserts the plumbing
+    it depends on (the raw per-row values and the footer cell/JS)."""
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/05/2026","Buy to Open","AAA 06/19/2026 50.00 C","CALL AAA","2","$3.00","$0.00","-$600.00"\n'
+        '"01/06/2026","Buy","NEWCO","NEW COMPANY INC","50","$4.00","$0.00","-$200.00"\n'
+    )
+    dashboard = client.post("/upload", files={"file": ("mixed_open.csv", csv_content, "text/csv")})
+    assert 'id="open-positions-total-cost-value"' in dashboard.text
+    assert 'data-cost-value="600.0"' in dashboard.text  # AAA: 200 units * $3.00
+    assert 'data-cost-value="200.0"' in dashboard.text  # NEWCO: 50 units * $4.00
+    assert "totalCostValue" in dashboard.text
 
 
 def test_needs_review_sections_show_counts_and_sequential_row_numbers(client):
