@@ -476,6 +476,24 @@ def test_share_trade_never_shows_up_multiplied_like_an_option_contract(client):
     assert "10000" not in oldco_row.group(1)
 
 
+def test_trade_log_has_a_live_total_gain_loss_footer_row(client):
+    """The Total Gain/Loss footer is computed client-side (JS sums
+    data-gain-loss across whatever rows are currently visible), so this
+    asserts the plumbing it depends on: the footer cell itself, and a
+    raw numeric data-gain-loss attribute per row for the JS to add up."""
+    with open(FIXTURE, "rb") as f:
+        resp = client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+
+    assert 'id="trade-log-total-gain"' in resp.text
+    # ABCD's real gain, WXYZ's expiration loss, and OLDCO's share gain --
+    # raw floats (JS parseFloat()s and sums them, then formats to 2dp),
+    # so this just confirms each row carries its true numeric value.
+    assert 'data-gain-loss="397.35999999999996"' in resp.text
+    assert 'data-gain-loss="-200.66000000000003"' in resp.text
+    assert 'data-gain-loss="499.0"' in resp.text
+    assert "totalGain" in resp.text  # the summing logic itself is present
+
+
 def test_home_redirects_to_latest_upload_after_data_exists(client):
     with open(FIXTURE, "rb") as f:
         client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
