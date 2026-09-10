@@ -1,6 +1,13 @@
 """Turns a flat transaction feed into closed trade-pairs (the rows that
 correspond to the Excel sheet's trade log) using FIFO lot matching.
 
+Handles both instrument types with the same engine: options (Buy to
+Open / Sell to Close / Expired) and plain share trades (Buy / Sell).
+They never cross-contaminate because _lot_key() includes the full raw
+symbol string -- an option's symbol always differs from its underlying's
+plain stock symbol, so they naturally land in separate FIFO queues even
+for the same account and ticker.
+
 Why FIFO: it's the standard, defensible default for tax-lot accounting
 when the broker export doesn't tag specific lots. If Shivanshu's cousin
 ever needs to override a specific match, that's a v2 problem (YAGNI).
@@ -24,6 +31,7 @@ class _Lot:
     unit_price: float
     fee_per_unit: float
     ticker: str
+    equity_type: str = "Shares"  # "Options" | "Shares"
     account: str = "UNKNOWN"
     symbol: str = ""
     expiration: Optional[datetime] = None
@@ -79,8 +87,6 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
     result = MatchResult()
 
     for txn in sorted(transactions, key=lambda t: t.date):
-        if not txn.is_option:
-            continue  # SCOPE (user decision, current pass): options only
         key = _lot_key(txn)
 
         if txn.action in OPENING_ACTIONS:
@@ -95,6 +101,7 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
                     txn.price,
                     fee_per_unit,
                     ticker=ticker,
+                    equity_type="Options" if txn.is_option else "Shares",
                     account=txn.account or "UNKNOWN",
                     symbol=txn.symbol.strip(),
                     expiration=txn.expiration,
@@ -147,6 +154,7 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
                         "symbol": txn.symbol,
                         "ticker": ticker,
                         "account": txn.account or "UNKNOWN",
+                        "equity_type": "Options" if txn.is_option else "Shares",
                         "expiration": txn.expiration,
                         "strike": txn.strike,
                         "right": txn.right,
@@ -164,6 +172,7 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
                     "symbol": lot.symbol,
                     "ticker": lot.ticker,
                     "account": lot.account,
+                    "equity_type": lot.equity_type,
                     "expiration": lot.expiration,
                     "strike": lot.strike,
                     "right": lot.right,

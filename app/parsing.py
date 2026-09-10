@@ -20,16 +20,22 @@ OPTION_SYMBOL_RE = re.compile(
     r"(?P<strike>[\d.]+)\s+(?P<right>[CP])$"
 )
 
-# SCOPE (user decision, current pass): options contracts only, opened and
-# closed cleanly within tracked history. "Buy"/"Sell" (plain share trades)
-# are deliberately excluded for now -- easy to widen back later by adding
-# to these sets. "Expired" IS treated as a closing action: an expired
-# option's Price/Fees/Amount are blank in the broker export, which our
-# money parser already reads as 0.0 -- so it naturally closes the position
-# at $0 realized value (a total loss of the premium paid), instead of
-# leaving it stranded as a fake still-open position.
-OPENING_ACTIONS = {"Buy to Open"}
-CLOSING_ACTIONS = {"Sell to Close", "Expired"}
+# Options (Buy to Open / Sell to Close / Expired) AND plain share trades
+# (Buy / Sell) are both matched, FIFO, using the same lot-matching engine
+# in matching.py -- kept as separate action names per instrument type
+# rather than normalized to one verb, because the broker CSV genuinely
+# uses different verbs for the two, and this keeps the parser a pure
+# pass-through (no renaming/guessing). Cross-contamination between an
+# option and a share trade on the same underlying isn't possible:
+# matching.py keys FIFO lots by account + the FULL raw symbol string, and
+# an option's symbol (e.g. "AAPL 08/21/2026 245.00 C") is never equal to
+# its plain stock symbol ("AAPL"). "Expired" IS treated as a closing
+# action: an expired option's Price/Fees/Amount are blank in the broker
+# export, which our money parser already reads as 0.0 -- so it naturally
+# closes the position at $0 realized value (a total loss of the premium
+# paid), instead of leaving it stranded as a fake still-open position.
+OPENING_ACTIONS = {"Buy to Open", "Buy"}
+CLOSING_ACTIONS = {"Sell to Close", "Expired", "Sell"}
 # Actions that are pure cash/income events, not trades. Note some of
 # these are cash MOVEMENTS, not income in the everyday sense (MoneyLink
 # Transfer = a withdrawal/deposit to a linked bank account; Journal = an

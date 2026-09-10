@@ -76,21 +76,57 @@ def test_expired_options_close_automatically_at_zero_realized_value(transactions
     assert wxyz.cost_price > 0  # premium paid, nothing recovered -> a loss once enriched
 
 
-def test_plain_share_trades_are_ignored_entirely():
-    """SCOPE (current pass): only options via Buy to Open / Sell to Close
-    are processed. OLDCO's plain Buy/Sell (shares) should not appear
-    anywhere -- not closed, not open, not unmatched."""
+def test_plain_share_buy_sell_matches_alongside_options():
+    """Plain share trades (Buy / Sell) use the same FIFO engine as options
+    (Buy to Open / Sell to Close). OLDCO's round trip spans a full year
+    (Jan 2025 -> Jan 2026), which also exercises the long-term holding
+    period path with a real, non-option trade."""
     txns = parse_transactions_csv(FIXTURE, account="TEST123")
     result = match_transactions(txns)
-    assert not any(t.ticker == "OLDCO" for t in result.closed_trades)
+    oldco = next(t for t in result.closed_trades if t.ticker == "OLDCO")
+    assert oldco.equity_type == "Shares"
+    assert oldco.quantity == 100  # shares, not multiplied by the 100x options factor
+    assert oldco.cost_price == pytest.approx(20.0)  # no opening fee in the fixture
+    assert oldco.sell_price == pytest.approx(24.99)  # $25.00 - ($1.00 fee / 100 shares)
+    assert oldco.buy_date == datetime(2025, 1, 1)
+    assert oldco.sell_date == datetime(2026, 1, 5)
+    # Not left dangling anywhere else.
     assert not any(p["symbol"] == "OLDCO" for p in result.open_positions)
     assert not any(u["symbol"] == "OLDCO" for u in result.unmatched_closes)
 
 
+def test_share_trade_never_cross_matches_an_option_on_the_same_underlying():
+    """The exact scenario the user was worried about: a plain share Buy
+    on TICK and an option Buy to Open on TICK in the same account must
+    stay in two completely separate FIFO queues -- a Sell of the shares
+    must never close out the option lot, or vice versa."""
+    txns = [
+        Transaction(datetime(2026, 1, 1), "Buy", "TICK", "", 100, 10.0, 0.0, -1000.0, account="ACCT"),
+        Transaction(
+            datetime(2026, 1, 2), "Buy to Open", "TICK 06/19/2026 15.00 C", "", 1, 2.0, 0.0, -200.0,
+            underlying="TICK", expiration=datetime(2026, 6, 19), strike=15.0, right="C", account="ACCT",
+        ),
+        Transaction(datetime(2026, 1, 10), "Sell", "TICK", "", 100, 12.0, 0.0, 1200.0, account="ACCT"),
+    ]
+    result = match_transactions(txns)
+
+    # The share round trip closes...
+    assert len(result.closed_trades) == 1
+    closed = result.closed_trades[0]
+    assert closed.equity_type == "Shares"
+    assert closed.quantity == 100
+    # ...and the option's opening lot is completely untouched -- still open.
+    assert len(result.open_positions) == 1
+    open_pos = result.open_positions[0]
+    assert open_pos["equity_type"] == "Options"
+    assert open_pos["symbol"] == "TICK 06/19/2026 15.00 C"
+    assert open_pos["remaining_units"] == 100  # 1 contract * 100, untouched
+
+
 def test_only_the_clean_options_round_trip_closes_in_the_fixture(transactions):
     result = match_transactions(transactions)
-    assert len(result.closed_trades) == 2  # ABCD's real close + WXYZ's expiration
-    assert {t.ticker for t in result.closed_trades} == {"ABCD", "WXYZ"}
+    assert len(result.closed_trades) == 3  # ABCD's real close + WXYZ's expiration + OLDCO's shares
+    assert {t.ticker for t in result.closed_trades} == {"ABCD", "WXYZ", "OLDCO"}
     assert result.open_positions == []
     assert result.unmatched_closes == []
 

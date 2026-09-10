@@ -21,6 +21,18 @@
     />
   </div>
   <div>
+    <label for="equity-type-filter" class="block text-xs font-semibold text-slate-400 mb-1">Type</label>
+    <select
+      id="equity-type-filter"
+      onchange="filterTradeLog()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    >
+      <option value="">All (Options + Shares)</option>
+      <option value="options">Options only</option>
+      <option value="shares">Shares only</option>
+    </select>
+  </div>
+  <div>
     <label for="date-from" class="block text-xs font-semibold text-slate-400 mb-1">Sell date from</label>
     <input
       type="date"
@@ -83,6 +95,7 @@
       <tr
         data-ticker="{{ t.ticker|lower }}"
         data-sell-date="{{ t.sell_date.strftime('%Y-%m-%d') }}"
+        data-equity-type="{{ t.equity_type|lower }}"
         class="border-t border-slate-800 hover:bg-slate-800/50 {% if t.upload_id == current_upload_id %}bg-cyan-950/40{% endif %}"
       >
         <td class="px-2 py-1 text-right text-slate-500">{{ loop.index }}</td>
@@ -162,13 +175,15 @@
     const search = document.getElementById("ticker-search").value.trim().toLowerCase();
     const from = document.getElementById("date-from").value;
     const to = document.getElementById("date-to").value;
+    const equityType = document.getElementById("equity-type-filter").value;
     const rows = document.querySelectorAll("#trade-log-body tr[data-ticker]");
     let visible = 0;
     rows.forEach((row) => {
       const matchesTicker = !search || row.dataset.ticker.includes(search);
       const matchesFrom = !from || row.dataset.sellDate >= from;
       const matchesTo = !to || row.dataset.sellDate <= to;
-      const show = matchesTicker && matchesFrom && matchesTo;
+      const matchesEquityType = !equityType || row.dataset.equityType === equityType;
+      const show = matchesTicker && matchesFrom && matchesTo && matchesEquityType;
       row.hidden = !show;
       if (show) visible++;
     });
@@ -181,6 +196,7 @@
     document.getElementById("ticker-search").value = "";
     document.getElementById("date-from").value = "";
     document.getElementById("date-to").value = "";
+    document.getElementById("equity-type-filter").value = "";
     filterTradeLog();
   }
 

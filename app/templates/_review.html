@@ -16,6 +16,7 @@
         {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
         <th scope="col" class="px-3 py-2 text-left">Close Date</th>
         <th scope="col" class="px-3 py-2 text-left">Ticker</th>
+        <th scope="col" class="px-3 py-2 text-left">Equity Type</th>
         <th scope="col" class="px-3 py-2 text-left">Expiration</th>
         <th scope="col" class="px-3 py-2 text-right">Strike</th>
         <th scope="col" class="px-3 py-2 text-left">Type</th>
@@ -30,6 +31,7 @@
         {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ u.account }}</td>{% endif %}
         <td class="px-3 py-1 text-slate-300">{{ u.date.strftime('%m/%d/%Y') }}</td>
         <td class="px-3 py-1 font-medium text-slate-100">{{ u.ticker }}{% set is_adj = u.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
+        <td class="px-3 py-1 text-slate-300">{{ u.equity_type }}</td>
         <td class="px-3 py-1 text-slate-300">{{ u.expiration.strftime('%m/%d/%Y') if u.expiration else '--' }}</td>
         <td class="px-3 py-1 text-right text-slate-300">{{ u.strike | usd if u.strike is not none else '--' }}</td>
         <td class="px-3 py-1 text-slate-300">{{ 'Call' if u.right == 'C' else ('Put' if u.right == 'P' else '--') }}</td>
@@ -79,6 +81,18 @@
       class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
     />
   </div>
+  <div>
+    <label for="open-equity-type-filter" class="block text-xs font-semibold text-slate-400 mb-1">Type</label>
+    <select
+      id="open-equity-type-filter"
+      onchange="filterOpenPositions()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    >
+      <option value="">All (Options + Shares)</option>
+      <option value="options">Options only</option>
+      <option value="shares">Shares only</option>
+    </select>
+  </div>
   <button
     type="button"
     onclick="clearOpenPositionFilters()"
@@ -96,6 +110,7 @@
         <th scope="col" class="px-3 py-2 text-right">#</th>
         {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
         <th scope="col" class="px-3 py-2 text-left">Ticker</th>
+        <th scope="col" class="px-3 py-2 text-left">Equity Type</th>
         <th scope="col" class="px-3 py-2 text-left">Open Date</th>
         <th scope="col" class="px-3 py-2 text-left">Expiration</th>
         <th scope="col" class="px-3 py-2 text-right">Strike</th>
@@ -110,11 +125,13 @@
       <tr
         data-ticker="{{ p.ticker|lower }}"
         data-open-date="{{ p.open_date.strftime('%Y-%m-%d') }}"
+        data-equity-type="{{ p.equity_type|lower }}"
         class="border-t border-slate-800 hover:bg-slate-800/50"
       >
         <td class="px-3 py-1 text-right text-slate-500">{{ loop.index }}</td>
         {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ p.account }}</td>{% endif %}
         <td class="px-3 py-1 font-medium text-slate-100">{{ p.ticker }}{% set is_adj = p.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
+        <td class="px-3 py-1 text-slate-300">{{ p.equity_type }}</td>
         <td class="px-3 py-1 text-slate-300">{{ p.open_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-3 py-1 text-slate-300">{{ p.expiration.strftime('%m/%d/%Y') if p.expiration else '--' }}</td>
         <td class="px-3 py-1 text-right text-slate-300">{{ p.strike | usd if p.strike is not none else '--' }}</td>
@@ -125,12 +142,12 @@
       </tr>
       {% endfor %}
       <tr id="open-positions-empty-row" hidden>
-        <td colspan="{{ 10 if accounts|length > 1 else 9 }}" class="px-3 py-4 text-center text-slate-400">No open positions match your filters.</td>
+        <td colspan="{{ 11 if accounts|length > 1 else 10 }}" class="px-3 py-4 text-center text-slate-400">No open positions match your filters.</td>
       </tr>
     </tbody>
     <tfoot>
       <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
-        <td colspan="{{ 9 if accounts|length > 1 else 8 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake in open positions</td>
+        <td colspan="{{ 10 if accounts|length > 1 else 9 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake in open positions</td>
         <td class="px-3 py-2 text-right text-amber-300">{{ open_positions_cost_value | usd }}</td>
       </tr>
     </tfoot>
@@ -142,13 +159,15 @@
     const search = document.getElementById("open-ticker-search").value.trim().toLowerCase();
     const from = document.getElementById("open-date-from").value;
     const to = document.getElementById("open-date-to").value;
+    const equityType = document.getElementById("open-equity-type-filter").value;
     const rows = document.querySelectorAll("#open-positions-body tr[data-ticker]");
     let visible = 0;
     rows.forEach((row) => {
       const matchesTicker = !search || row.dataset.ticker.includes(search);
       const matchesFrom = !from || row.dataset.openDate >= from;
       const matchesTo = !to || row.dataset.openDate <= to;
-      const show = matchesTicker && matchesFrom && matchesTo;
+      const matchesEquityType = !equityType || row.dataset.equityType === equityType;
+      const show = matchesTicker && matchesFrom && matchesTo && matchesEquityType;
       row.hidden = !show;
       if (show) visible++;
     });
@@ -161,6 +180,7 @@
     document.getElementById("open-ticker-search").value = "";
     document.getElementById("open-date-from").value = "";
     document.getElementById("open-date-to").value = "";
+    document.getElementById("open-equity-type-filter").value = "";
     filterOpenPositions();
   }
 

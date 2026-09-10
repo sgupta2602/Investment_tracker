@@ -375,9 +375,8 @@ def test_upload_then_dashboard_shows_closed_trades(client):
         )
     assert resp.status_code == 200  # TestClient follows the 303 redirect
     assert "ABCD" in resp.text
-    # SCOPE (current pass): only options via Buy to Open / Sell to Close.
-    # OLDCO is a plain share trade and must NOT show up in the trade log.
-    assert "OLDCO" not in resp.text
+    # Plain share Buy/Sell trades are matched too, right alongside options.
+    assert "OLDCO" in resp.text
     assert "Trade Log" in resp.text
 
 
@@ -448,6 +447,33 @@ def test_trade_log_rows_carry_search_and_date_filter_attributes(client):
     assert 'id="ticker-search"' in resp.text
     assert 'id="date-from"' in resp.text
     assert 'id="date-to"' in resp.text
+
+
+def test_trade_log_shows_both_options_and_shares_as_distinct_rows(client):
+    """The exact ask: plain stock Buy/Sell trades (OLDCO) should show up
+    in the same Trade Log as options (ABCD), each clearly tagged with its
+    own Equity Type -- never merged or mistaken for one another."""
+    with open(FIXTURE, "rb") as f:
+        resp = client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+
+    assert "ABCD" in resp.text
+    assert "OLDCO" in resp.text
+    assert 'data-equity-type="options"' in resp.text
+    assert 'data-equity-type="shares"' in resp.text
+    assert 'id="equity-type-filter"' in resp.text
+
+
+def test_share_trade_never_shows_up_multiplied_like_an_option_contract(client):
+    """Regression guard for the 100x options multiplier leaking into share
+    quantities -- OLDCO bought/sold 100 real shares should show '100' in
+    Qty, not 10000 (100 shares * the options multiplier)."""
+    with open(FIXTURE, "rb") as f:
+        resp = client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+
+    oldco_row = re.search(r'data-ticker="oldco"[^>]*>(.*?)</tr>', resp.text, re.DOTALL)
+    assert oldco_row is not None
+    assert ">100<" in oldco_row.group(1)
+    assert "10000" not in oldco_row.group(1)
 
 
 def test_home_redirects_to_latest_upload_after_data_exists(client):
@@ -830,6 +856,23 @@ def test_still_open_positions_carry_search_and_date_filter_attributes(client):
     assert 'id="open-date-from"' in dashboard.text
     assert 'id="open-date-to"' in dashboard.text
     assert "filterOpenPositions" in dashboard.text
+
+
+def test_open_stock_position_shows_equity_type_distinct_from_open_option(client):
+    """An open share position (no closing Sell yet) and an open option
+    position should sit side by side on Needs Review, each tagged with
+    its own Equity Type -- exactly the 'no overlap or confusion' ask."""
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/05/2026","Buy to Open","AAA 06/19/2026 50.00 C","CALL AAA","2","$3.00","$0.00","-$600.00"\n'
+        '"01/06/2026","Buy","NEWCO","NEW COMPANY INC","50","$4.00","$0.00","-$200.00"\n'
+    )
+    dashboard = client.post("/upload", files={"file": ("mixed_open.csv", csv_content, "text/csv")})
+    assert "AAA" in dashboard.text
+    assert "NEWCO" in dashboard.text
+    assert 'data-equity-type="options"' in dashboard.text
+    assert 'data-equity-type="shares"' in dashboard.text
+    assert 'id="open-equity-type-filter"' in dashboard.text
 
 
 def test_needs_review_sections_show_counts_and_sequential_row_numbers(client):
