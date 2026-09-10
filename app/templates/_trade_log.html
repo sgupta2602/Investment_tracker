@@ -66,7 +66,7 @@
       <tr>
         <th scope="col" class="px-2 py-2 text-right">#</th>
         <th scope="col" class="px-2 py-2 text-left">Account</th>
-        <th scope="col" class="px-2 py-2 text-left">Sell Date</th>
+        <th scope="col" class="px-2 py-2 text-left">Buy Date</th>
         <th scope="col" class="px-2 py-2 text-left">Ticker</th>
         <th scope="col" class="px-2 py-2 text-right">Qty</th>
         <th scope="col" class="px-2 py-2 text-left">Type</th>
@@ -74,7 +74,7 @@
         <th scope="col" class="px-2 py-2 text-right">Sell Price</th>
         <th scope="col" class="px-2 py-2 text-right">Cost Price</th>
         <th scope="col" class="px-2 py-2 text-right">Break Even</th>
-        <th scope="col" class="px-2 py-2 text-left">Buy Date</th>
+        <th scope="col" class="px-2 py-2 text-left">Sell Date</th>
         <th scope="col" class="px-2 py-2 text-right">Realized Value</th>
         <th scope="col" class="px-2 py-2 text-right">Cost Basis</th>
         <th scope="col" class="px-2 py-2 text-right">Hold (days)</th>
@@ -102,7 +102,7 @@
       >
         <td class="px-2 py-1 text-right text-slate-500">{{ loop.index }}</td>
         <td class="px-2 py-1 text-slate-300">{{ t.account }}</td>
-        <td class="px-2 py-1 text-slate-300">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-2 py-1 text-slate-300">{{ t.buy_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-2 py-1 font-medium text-slate-100">
           {{ t.ticker }}{% set is_adj = t.is_adjusted %}{% include '_adjusted_icon.html' %}
         </td>
@@ -112,7 +112,7 @@
         <td class="px-2 py-1 text-right text-slate-300">{{ t.sell_price | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_price | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.break_even | usd }}</td>
-        <td class="px-2 py-1 text-slate-300">{{ t.buy_date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-2 py-1 text-slate-300">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.realized_value | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_basis | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ (t.sell_date - t.buy_date).days }}</td>
