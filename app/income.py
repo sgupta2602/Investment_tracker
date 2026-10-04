@@ -11,6 +11,7 @@ tabs at display time via filter_income_events() / filter_transfer_events().
 """
 from __future__ import annotations
 
+from app.calc import DIVIDEND_LONG_TERM_RATE, DIVIDEND_SHORT_TERM_RATE
 from app.parsing import CASH_EVENT_ACTIONS, INCOME_ACTIONS, Transaction
 
 
@@ -71,3 +72,46 @@ def event_totals(events: list[dict]) -> dict:
         totals[e["label"]] = totals.get(e["label"], 0.0) + e["amount"]
     totals["Total"] = sum(e["amount"] for e in events)
     return totals
+
+
+def dividend_breakdown(income_events: list[dict]) -> dict:
+    """Splits dividend income into the same short/long shape as
+    summary.gains_losses_by_term(), because that's genuinely how the IRS
+    treats it: 'Qualified Dividend' gets a preferential rate just like a
+    long-term capital gain, while everything else here -- plain 'Cash
+    Dividend' (non-qualified/ordinary), plus the 'ADR Mgmt Fee' and
+    'Foreign Tax Paid' deductions against dividend income -- is taxed
+    like ordinary income, the same bucket short-term capital gains fall
+    into. Uses its own DIVIDEND_LONG_TERM_RATE/DIVIDEND_SHORT_TERM_RATE
+    (25% / 42%) rather than the stock LONG_TERM_RATE/SHORT_TERM_RATE --
+    per user decision, these are deliberately different numbers, not a
+    copy of the capital-gains rates.
+
+    Returns the same {gains, losses, tax, rate} shape per bucket so
+    _tax.html can render both tables' rows with identical markup."""
+
+    def bucket(events: list[dict]) -> tuple[float, float]:
+        gains = sum(e["amount"] for e in events if e["amount"] > 0)
+        losses = sum(e["amount"] for e in events if e["amount"] < 0)
+        return gains, losses
+
+    qualified = [e for e in income_events if e["action"] == "Qualified Dividend"]
+    ordinary = [e for e in income_events if e["action"] != "Qualified Dividend"]
+
+    q_gains, q_losses = bucket(qualified)
+    o_gains, o_losses = bucket(ordinary)
+
+    return {
+        "short": {
+            "gains": o_gains,
+            "losses": o_losses,
+            "tax": (o_gains + o_losses) * DIVIDEND_SHORT_TERM_RATE,
+            "rate": DIVIDEND_SHORT_TERM_RATE,
+        },
+        "long": {
+            "gains": q_gains,
+            "losses": q_losses,
+            "tax": (q_gains + q_losses) * DIVIDEND_LONG_TERM_RATE,
+            "rate": DIVIDEND_LONG_TERM_RATE,
+        },
+    }

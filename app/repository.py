@@ -201,11 +201,11 @@ def replace_closed_trades(enriched_trades: list[dict]) -> None:
         conn.executemany(
             """INSERT INTO closed_trades
                (upload_id, account, sell_date, ticker, quantity, equity_type,
-                expiration, sell_price, strike_price, cost_price, break_even, buy_date,
+                expiration, right, sell_price, strike_price, cost_price, break_even, buy_date,
                 realized_value, cost_basis, cumulative_investment,
-                hold_period_months, gain_loss, pct_gain_loss, gain_per_month,
+                hold_period_months, gain_loss, pct_gain_loss, gain_per_day,
                 gain_type, cumulative_gain, cumulative_gain_pct, estimated_tax, is_adjusted)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             [
                 (
                     t["upload_id"],
@@ -215,6 +215,7 @@ def replace_closed_trades(enriched_trades: list[dict]) -> None:
                     t["quantity"],
                     t["equity_type"],
                     _fmt_dt(t.get("expiration")),
+                    t.get("right"),
                     t["sell_price"],
                     t.get("strike_price"),
                     t["cost_price"],
@@ -226,7 +227,7 @@ def replace_closed_trades(enriched_trades: list[dict]) -> None:
                     t["hold_period_months"],
                     t["gain_loss"],
                     t["pct_gain_loss"],
-                    t["gain_per_month"],
+                    t["gain_per_day"],
                     t["gain_type"],
                     t["cumulative_gain"],
                     t["cumulative_gain_pct"],
@@ -374,3 +375,156 @@ def _row_to_income_dict(r) -> dict:
     d["date"] = _parse_dt(d.pop("event_date"))
     d["label"] = _display_label(d["action"], d["amount"])
     return d
+
+
+# --- Manual notes for Needs Review's "missing an opening trade" table -----
+# Purely informational (see the unmatched_close_overrides table comment in
+# db.py) -- never read by calc.py or matching.py, never shown in Trade Log.
+UNMATCHED_OVERRIDE_FIELDS = {"buy_date", "cost_price"}
+
+
+def unmatched_close_key(u: dict) -> str:
+    """Deterministic identity for one row of match_transactions()'s
+    unmatched_closes -- recomputed fresh on every dashboard request (never
+    persisted itself), so a manually-typed Buy Date / Cost Price note needs
+    its own stable key to survive a page reload. Built from account +
+    symbol + close date only -- deliberately excludes unmatched_units, so
+    a note stays attached to 'this real-world closing transaction' even if
+    a partial re-upload changes how many units are still unmatched for it.
+    Same YAGNI collision trade-off as trade_key()/transaction_key() above:
+    two genuinely different closes sharing all three fields is accepted as
+    negligible risk for personal trading data."""
+    return "|".join(str(x) for x in [u.get("account"), u.get("symbol"), _fmt_dt(u.get("date"))])
+
+
+def save_unmatched_close_override_field(key: str, field: str, value: str) -> None:
+    if field not in UNMATCHED_OVERRIDE_FIELDS:
+        raise ValueError(f"Unknown override field: {field}")
+    # cost_price is stored numerically (REAL column) so it round-trips
+    # cleanly if this ever needs formatting -- an empty input clears the
+    # field back to NULL rather than storing an invalid empty string.
+    db_value: Optional[float | str] = value or None
+    if field == "cost_price" and db_value is not None:
+        db_value = float(db_value)
+    with get_conn() as conn:
+        conn.execute(
+            f"""INSERT INTO unmatched_close_overrides (override_key, {field}, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(override_key) DO UPDATE SET {field} = excluded.{field}, updated_at = excluded.updated_at""",
+            (key, db_value, datetime.now().strftime(_DATE_FMT)),
+        )
+
+
+def load_all_unmatched_close_overrides() -> dict[str, dict]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM unmatched_close_overrides").fetchall()
+        return {r["override_key"]: dict(r) for r in rows}
+
+
+def attach_unmatched_close_overrides(unmatched: list[dict]) -> list[dict]:
+    """Adds override_key plus the manually-typed buy_date/cost_price (blank
+    string if never set) onto each unmatched-close dict, mirroring how
+    _attach_annotations() decorates closed trades for the Trade Log."""
+    overrides = load_all_unmatched_close_overrides()
+    for u in unmatched:
+        key = unmatched_close_key(u)
+        u["override_key"] = key
+        ov = overrides.get(key, {})
+        u["buy_date"] = ov.get("buy_date") or ""
+        cost_price = ov.get("cost_price")
+        u["cost_price"] = "" if cost_price is None else cost_price
+    return unmatched
+
+
+def prune_stale_unmatched_close_overrides(current_keys: set[str]) -> None:
+    """Deletes any manual override whose row no longer shows up in Needs
+    Review at all -- i.e. the real opening trade arrived (via a new
+    upload) or the close itself went away (via a delete), and matching.py
+    resolved it for real. Called from main.py._rebuild_closed_trades()
+    right after every upload/delete, using the unmatched_closes list that
+    rebuild already computed -- no extra matching pass needed."""
+    with get_conn() as conn:
+        if not current_keys:
+            conn.execute("DELETE FROM unmatched_close_overrides")
+            return
+        placeholders = ",".join("?" * len(current_keys))
+        conn.execute(
+            f"DELETE FROM unmatched_close_overrides WHERE override_key NOT IN ({placeholders})",
+            tuple(current_keys),
+        )
+
+
+# --- Manual notes for the Open Positions tab (Current Price, Comments) ----
+# Purely informational, same spirit as the unmatched-close overrides above
+# -- see the open_position_overrides table comment in db.py.
+OPEN_POSITION_OVERRIDE_FIELDS = {"current_price", "comments"}
+
+
+def open_position_key(p: dict) -> str:
+    """Deterministic identity for one row of match_transactions()'s
+    open_positions -- recomputed fresh on every dashboard request, so a
+    manually-typed Current Price / Comments note needs its own stable key
+    to survive a page reload. Built from account + symbol + open date,
+    same YAGNI collision trade-off as unmatched_close_key() above."""
+    return "|".join(str(x) for x in [p.get("account"), p.get("symbol"), _fmt_dt(p.get("open_date"))])
+
+
+def save_open_position_override_field(key: str, field: str, value: str) -> None:
+    if field not in OPEN_POSITION_OVERRIDE_FIELDS:
+        raise ValueError(f"Unknown override field: {field}")
+    db_value: Optional[float | str] = value or None
+    if field == "current_price" and db_value is not None:
+        db_value = float(db_value)
+    with get_conn() as conn:
+        conn.execute(
+            f"""INSERT INTO open_position_overrides (override_key, {field}, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(override_key) DO UPDATE SET {field} = excluded.{field}, updated_at = excluded.updated_at""",
+            (key, db_value, datetime.now().strftime(_DATE_FMT)),
+        )
+
+
+def load_all_open_position_overrides() -> dict[str, dict]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM open_position_overrides").fetchall()
+        return {r["override_key"]: dict(r) for r in rows}
+
+
+def attach_open_position_overrides(positions: list[dict]) -> list[dict]:
+    """Decorates each open position with: override_key + the manually-typed
+    current_price/comments (blank if never set), Break Even (same formula
+    as calc.py's per-trade column -- strike + unit price for options, just
+    unit price for shares), and pct_gain (None until a Current Price has
+    been entered, since there's no live quote to compare against)."""
+    overrides = load_all_open_position_overrides()
+    for p in positions:
+        key = open_position_key(p)
+        p["override_key"] = key
+        ov = overrides.get(key, {})
+        current_price = ov.get("current_price")
+        p["current_price"] = "" if current_price is None else current_price
+        p["comments"] = ov.get("comments") or ""
+        p["break_even"] = (p.get("strike") or 0.0) + p["unit_price"]
+        if current_price is not None and p["unit_price"]:
+            p["pct_gain"] = (current_price - p["unit_price"]) / p["unit_price"]
+        else:
+            p["pct_gain"] = None
+    return positions
+
+
+def prune_stale_open_position_overrides(current_keys: set[str]) -> None:
+    """Deletes any manual Current Price/Comments note whose position no
+    longer shows up in Open Positions at all -- i.e. it got fully closed
+    out (via a new upload's Sell/Sell to Close/Expired, or the opening
+    trade itself was removed via a delete). Called from
+    main.py._rebuild_closed_trades() right after every upload/delete,
+    using the open_positions list that rebuild already computed."""
+    with get_conn() as conn:
+        if not current_keys:
+            conn.execute("DELETE FROM open_position_overrides")
+            return
+        placeholders = ",".join("?" * len(current_keys))
+        conn.execute(
+            f"DELETE FROM open_position_overrides WHERE override_key NOT IN ({placeholders})",
+            tuple(current_keys),
+        )

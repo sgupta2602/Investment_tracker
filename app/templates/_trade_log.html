@@ -66,22 +66,23 @@
       <tr>
         <th scope="col" class="px-2 py-2 text-right">#</th>
         <th scope="col" class="px-2 py-2 text-left">Account</th>
-        <th scope="col" class="px-2 py-2 text-left">Buy Date</th>
         <th scope="col" class="px-2 py-2 text-left">Ticker</th>
+        <th scope="col" class="px-2 py-2 text-left">Buy Date</th>
+        <th scope="col" class="px-2 py-2 text-left">Sell Date</th>
+        <th scope="col" class="px-2 py-2 text-right">Hold (days)</th>
         <th scope="col" class="px-2 py-2 text-right">Qty</th>
-        <th scope="col" class="px-2 py-2 text-left">Type</th>
+        <th scope="col" class="px-2 py-2 text-left">Equity Type</th>
         <th scope="col" class="px-2 py-2 text-right">Strike</th>
+        <th scope="col" class="px-2 py-2 text-left">Call/Put</th>
+        <th scope="col" class="px-2 py-2 text-left">Term</th>
         <th scope="col" class="px-2 py-2 text-right">Sell Price</th>
         <th scope="col" class="px-2 py-2 text-right">Cost Price</th>
         <th scope="col" class="px-2 py-2 text-right">Break Even</th>
-        <th scope="col" class="px-2 py-2 text-left">Sell Date</th>
         <th scope="col" class="px-2 py-2 text-right">Realized Value</th>
         <th scope="col" class="px-2 py-2 text-right">Cost Basis</th>
-        <th scope="col" class="px-2 py-2 text-right">Hold (days)</th>
         <th scope="col" class="px-2 py-2 text-right">Gain/Loss</th>
         <th scope="col" class="px-2 py-2 text-right">% Gain/Loss</th>
-        <th scope="col" class="px-2 py-2 text-right">Gain/Month</th>
-        <th scope="col" class="px-2 py-2 text-left">Term</th>
+        <th scope="col" class="px-2 py-2 text-right">Gain/Day</th>
         <th scope="col" class="px-2 py-2 text-right">Cum. Gain</th>
         <th scope="col" class="px-2 py-2 text-right">Cum. Gain %</th>
         <th scope="col" class="px-2 py-2 text-right">Est. Tax</th>
@@ -102,26 +103,27 @@
       >
         <td class="px-2 py-1 text-right text-slate-500">{{ loop.index }}</td>
         <td class="px-2 py-1 text-slate-300">{{ t.account }}</td>
-        <td class="px-2 py-1 text-slate-300">{{ t.buy_date.strftime('%m/%d/%Y') }}</td>
         <td class="px-2 py-1 font-medium text-slate-100">
           {{ t.ticker }}{% set is_adj = t.is_adjusted %}{% include '_adjusted_icon.html' %}
         </td>
+        <td class="px-2 py-1 text-slate-300">{{ t.buy_date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-2 py-1 text-slate-300">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ (t.sell_date - t.buy_date).days }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ "%.0f"|format(t.quantity) }}</td>
         <td class="px-2 py-1 text-slate-300">{{ t.equity_type }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.strike_price | usd if t.strike_price else "-" }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ t.sell_price | usd }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_price | usd }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ t.break_even | usd }}</td>
-        <td class="px-2 py-1 text-slate-300">{{ t.sell_date.strftime('%m/%d/%Y') }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ t.realized_value | usd }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_basis | usd }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ (t.sell_date - t.buy_date).days }}</td>
-        <td class="px-2 py-1 text-right font-semibold {{ 'text-emerald-400' if t.gain_loss >= 0 else 'text-rose-400' }}">{{ t.gain_loss | usd }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ t.pct_gain_loss | pct }}</td>
-        <td class="px-2 py-1 text-right text-slate-300">{{ t.gain_per_month | pct }}</td>
+        <td class="px-2 py-1 text-slate-300">{{ 'Call' if t.right == 'C' else ('Put' if t.right == 'P' else '-') }}</td>
         <td class="px-2 py-1">
           <span class="px-2 py-0.5 rounded-full text-xs font-bold border {{ 'bg-sky-500/15 text-sky-300 border-sky-500/30' if t.gain_type == 'Long' else 'bg-amber-500/15 text-amber-300 border-amber-500/30' }}">{{ t.gain_type }}</span>
         </td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.sell_price | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_price | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.break_even | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.realized_value | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.cost_basis | usd }}</td>
+        <td class="px-2 py-1 text-right font-semibold {{ 'text-emerald-400' if t.gain_loss >= 0 else 'text-rose-400' }}">{{ t.gain_loss | usd }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.pct_gain_loss | pct }}</td>
+        <td class="px-2 py-1 text-right text-slate-300">{{ t.gain_per_day | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.cumulative_gain | usd }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.cumulative_gain_pct | pct }}</td>
         <td class="px-2 py-1 text-right text-slate-300">{{ t.estimated_tax | usd }}</td>
@@ -143,14 +145,14 @@
       </tr>
       {% endfor %}
       <tr id="trade-log-empty-row" hidden>
-        <td colspan="24" class="px-2 py-4 text-center text-slate-400">No trades match your filters.</td>
+        <td colspan="25" class="px-2 py-4 text-center text-slate-400">No trades match your filters.</td>
       </tr>
     </tbody>
     <tfoot>
       <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
-        <td colspan="14" class="px-2 py-2 text-right text-slate-300">Total Gain/Loss <span id="trade-log-total-label" class="font-normal text-slate-500"></span></td>
+        <td colspan="16" class="px-2 py-2 text-right text-slate-300">Total Gain/Loss <span id="trade-log-total-label" class="font-normal text-slate-500"></span></td>
         <td id="trade-log-total-gain" class="px-2 py-2 text-right">$0.00</td>
-        <td colspan="4"></td>
+        <td colspan="3"></td>
         <td class="px-2 py-2 text-right text-slate-300">Total Est. Tax</td>
         <td id="trade-log-total-tax" class="px-2 py-2 text-right text-slate-300">$0.00</td>
         <td colspan="3"></td>

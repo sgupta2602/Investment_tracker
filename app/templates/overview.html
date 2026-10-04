@@ -9,24 +9,41 @@
       ({{ trade_count }} closed trades{% if selected_account %} for {{ selected_account }}{% else %}, all accounts{% endif %})
     </span>
   </h2>
-  {% if accounts | length > 1 %}
-  <div>
-    <label for="account-select" class="text-sm font-medium mr-2 text-slate-300">Account:</label>
-    <select
-      id="account-select"
-      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-      onchange="navigateOverview()"
-    >
-      <option value="">All accounts</option>
-      {% for acct in accounts %}
-      <option value="{{ acct }}" {% if acct == selected_account %}selected{% endif %}>{{ acct }}</option>
-      {% endfor %}
-    </select>
+  <div class="flex flex-wrap items-center gap-3">
+    {% if accounts | length > 1 %}
+    <div>
+      <label for="account-select" class="text-sm font-medium mr-2 text-slate-300">Account:</label>
+      <select
+        id="account-select"
+        class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        onchange="navigateOverview()"
+      >
+        <option value="">All accounts</option>
+        {% for acct in accounts %}
+        <option value="{{ acct }}" {% if acct == selected_account %}selected{% endif %}>{{ acct }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if years | length > 1 %}
+    <div>
+      <label for="year-select" class="text-sm font-medium mr-2 text-slate-300">Year:</label>
+      <select
+        id="year-select"
+        class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        onchange="navigateOverview()"
+      >
+        <option value="">All years</option>
+        {% for yr in years %}
+        <option value="{{ yr }}" {% if yr == selected_year %}selected{% endif %}>{{ yr }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
   <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
     <p class="text-xs uppercase tracking-wide text-slate-500">Realized Investment</p>
     <p class="text-2xl font-extrabold mt-1 text-slate-100">{{ performance.realized_investment | usd }}</p>
@@ -38,6 +55,10 @@
   <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
     <p class="text-xs uppercase tracking-wide text-slate-500">Total Gain</p>
     <p class="text-2xl font-extrabold mt-1 {{ 'text-emerald-400' if performance.gain >= 0 else 'text-rose-400' }}">{{ performance.gain | usd }}</p>
+  </div>
+  <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <p class="text-xs uppercase tracking-wide text-slate-500">Total Losses</p>
+    <p class="text-2xl font-extrabold mt-1 {{ 'text-rose-400' if total_losses < 0 else 'text-slate-100' }}">{{ total_losses | usd }}</p>
   </div>
   <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
     <p class="text-xs uppercase tracking-wide text-slate-500">Yield</p>
@@ -53,10 +74,35 @@
     </div>
   </div>
   <div class="rounded-xl border border-slate-800 bg-slate-900 p-5">
-    <h3 class="font-semibold text-slate-200 mb-3">Gains by Term</h3>
+    <h3 class="font-semibold text-slate-200 mb-3">Gains &amp; Losses by Term</h3>
     <div class="h-72">
-      <canvas id="termChart" role="img" aria-label="Doughnut chart of short-term versus long-term gains"></canvas>
+      <canvas id="termChart" role="img" aria-label="Bar chart comparing short-term and long-term gains against losses"></canvas>
     </div>
+  </div>
+</div>
+
+<div class="rounded-xl border border-slate-800 bg-slate-900 p-5 mb-6">
+  <h3 class="font-semibold text-slate-200 mb-1">Account Equity Curve</h3>
+  <p class="text-xs text-slate-500 mb-3">
+    A running total of every dollar transferred into or out of this account, plus every closed
+    trade's realized gain/loss, merged into one timeline -- this app has no live quote feed, so
+    it deliberately excludes unrealized gains on still-open positions. {% if selected_year %}Resets
+    to $0 at the start of <strong class="text-slate-300">{{ selected_year }}</strong> because of the
+    Year filter above -- clear it to see true cumulative equity since your first transfer or trade.{% endif %}
+  </p>
+  <div class="h-72">
+    <canvas id="equityChart" role="img" aria-label="Line chart of approximate account equity over time"></canvas>
+  </div>
+</div>
+
+<div class="rounded-xl border border-slate-800 bg-slate-900 p-5 mb-6">
+  <h3 class="font-semibold text-slate-200 mb-1">Withdrawals Over Time</h3>
+  <p class="text-xs text-slate-500 mb-3">
+    Money that left this account via a MoneyLink transfer to your linked bank, or a Journal
+    transfer to a different brokerage account -- grouped by the calendar month it happened in.
+  </p>
+  <div class="h-72">
+    <canvas id="withdrawalsChart" role="img" aria-label="Bar chart of withdrawals per calendar month"></canvas>
   </div>
 </div>
 
@@ -246,8 +292,15 @@
   }
 
   function navigateOverview() {
-    const account = document.getElementById("account-select").value;
-    window.location = "/overview" + (account ? "?account=" + encodeURIComponent(account) : "");
+    const accountSelect = document.getElementById("account-select");
+    const yearSelect = document.getElementById("year-select");
+    const account = accountSelect ? accountSelect.value : "";
+    const year = yearSelect ? yearSelect.value : "";
+    const params = new URLSearchParams();
+    if (account) params.set("account", account);
+    if (year) params.set("year", year);
+    const query = params.toString();
+    window.location = "/overview" + (query ? "?" + query : "");
   }
 
   function toggleRecommenderDrilldown(rowId) {
@@ -263,6 +316,8 @@
   const monthlySeries = {{ monthly_series | tojson | safe }};
   const yearlySeries = {{ yearly_series | tojson | safe }};
   const termBreakdown = {{ term_breakdown | tojson | safe }};
+  const withdrawalsSeries = {{ withdrawals_series | tojson | safe }};
+  const equityPoints = {{ equity_points | tojson | safe }};
 
   const GRID_COLOR = "#1e293b";   // slate-800
   const TICK_COLOR = "#94a3b8";   // slate-400
@@ -295,19 +350,69 @@
   });
 
   new Chart(document.getElementById("termChart"), {
-    type: "doughnut",
+    type: "bar",
     data: {
-      labels: ["Short-term Gains", "Long-term Gains"],
+      labels: ["Short-term", "Long-term"],
+      datasets: [
+        {
+          label: "Gains ($)",
+          data: [termBreakdown.short.gains, termBreakdown.long.gains],
+          backgroundColor: "#34d399",
+          borderRadius: 6,
+        },
+        {
+          label: "Losses ($)",
+          data: [termBreakdown.short.losses, termBreakdown.long.losses],
+          backgroundColor: "#fb7185",
+          borderRadius: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: darkScales,
+      plugins: { legend: darkLegend },
+    },
+  });
+
+  new Chart(document.getElementById("equityChart"), {
+    type: "line",
+    data: {
+      labels: equityPoints.map((p) => p.date),
       datasets: [{
-        data: [Math.max(termBreakdown.short.gains, 0), Math.max(termBreakdown.long.gains, 0)],
-        backgroundColor: ["#f59e0b", "#38bdf8"],
-        borderColor: "#0f172a",
-        borderWidth: 2,
+        label: "Approx. Account Equity ($)",
+        data: equityPoints.map((p) => p.value),
+        borderColor: "#a78bfa",
+        backgroundColor: "rgba(167, 139, 250, 0.12)",
+        fill: true,
+        tension: 0.25,
+        pointRadius: 2,
       }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      scales: darkScales,
+      plugins: { legend: darkLegend },
+    },
+  });
+
+  new Chart(document.getElementById("withdrawalsChart"), {
+    type: "bar",
+    data: {
+      labels: withdrawalsSeries.map((p) => p.label),
+      datasets: [{
+        label: "Withdrawn ($)",
+        data: withdrawalsSeries.map((p) => p.withdrawn),
+        backgroundColor: "#fb923c",
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: darkScales,
       plugins: { legend: darkLegend },
     },
   });

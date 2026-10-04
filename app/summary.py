@@ -204,6 +204,72 @@ def filter_by_months(items: list[dict], date_field: str, selected_keys: set[str]
     return [item for item in items if item[date_field].strftime("%Y-%m") in selected_keys]
 
 
+def available_years(trades: list[dict], cash_events: list[dict]) -> list[str]:
+    """Every distinct calendar year present in either the closed trades'
+    sell_date or the cash events' date -- powers Overview's Year filter,
+    same idea as available_year_months() but one level coarser. Newest
+    year first, matching available_year_months()'s ordering."""
+    years = {t["sell_date"].strftime("%Y") for t in trades}
+    years |= {e["date"].strftime("%Y") for e in cash_events}
+    return sorted(years, reverse=True)
+
+
+def filter_by_year(items: list[dict], date_field: str, year: str) -> list[dict]:
+    """Restricts trades or cash events to one calendar year -- the
+    backing filter for Overview's Year dropdown. A single-year pick
+    (unlike the dashboard's multi-month checkbox filter) since Overview's
+    charts are already built around one coarse grouping at a time."""
+    return [item for item in items if item[date_field].strftime("%Y") == year]
+
+
+def withdrawals_by_month(transfer_events: list[dict]) -> list[dict]:
+    """Splits Transfers-tab events into withdrawn vs deposited per
+    calendar month, powering Overview's Withdrawals Over Time chart.
+    'Withdrawn' covers BOTH transfer actions this app tracks whenever the
+    amount is negative -- a MoneyLink transfer out to a linked bank, or a
+    Journal transfer out to a different brokerage account -- since both
+    represent cash actually leaving this account. Amounts are stored
+    negative in the DB; withdrawn is reported as a positive dollar figure
+    here so the chart reads naturally (a bigger bar means more withdrawn).
+    """
+    by_month: dict[str, list[dict]] = {}
+    for e in transfer_events:
+        key = e["date"].strftime("%Y-%m")
+        by_month.setdefault(key, []).append(e)
+
+    series = []
+    for key in sorted(by_month.keys()):
+        group = by_month[key]
+        withdrawn = -sum(e["amount"] for e in group if e["amount"] < 0)
+        deposited = sum(e["amount"] for e in group if e["amount"] > 0)
+        label = datetime.strptime(key, "%Y-%m").strftime("%b %Y")
+        series.append({"month": key, "label": label, "withdrawn": withdrawn, "deposited": deposited})
+    return series
+
+
+def equity_curve(trades: list[dict], transfer_events: list[dict]) -> list[dict]:
+    """Approximates 'what this account is worth over time' from data this
+    app actually has -- there's no live quote feed, so this is NOT a real
+    net-liquidation curve. It's a running total of every dollar moved IN
+    (deposits) or OUT (withdrawals) via Transfers, plus every closed
+    trade's realized gain/loss, merged into one chronological timeline.
+    Deliberately excludes unrealized gains on still-open positions (no
+    reliable current price for most of them without a quote feed) and
+    dividend/fee income (that already has its own Income tab -- mixing it
+    in here would double-count against the Gain figures shown elsewhere
+    on Overview)."""
+    events = [{"date": t["sell_date"], "delta": t["gain_loss"]} for t in trades]
+    events += [{"date": e["date"], "delta": e["amount"]} for e in transfer_events]
+    events.sort(key=lambda e: e["date"])
+
+    running = 0.0
+    points = []
+    for e in events:
+        running += e["delta"]
+        points.append({"date": e["date"].strftime("%m/%d/%Y"), "value": round(running, 2)})
+    return points
+
+
 def performance_by_recommender(trades: list[dict]) -> list[dict]:
     """Groups closed trades by the Trade Log's 'Recommended By' field so
     Overview can answer 'who told me about this stock, and how much did

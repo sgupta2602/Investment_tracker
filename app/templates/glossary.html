@@ -55,17 +55,12 @@
         <tr>
           <td class="px-3 py-2 font-semibold text-slate-100">Hold (days) <span class="text-slate-500 font-normal">(Trade Log column)</span></td>
           <td class="px-3 py-2 text-cyan-300"><code>(sell_date &minus; buy_date).days</code></td>
-          <td class="px-3 py-2 text-slate-400">Exact days held. Used to display, not for the Gain/Month math below -- that still uses the internal months figure so the rate stays comparable across trades.</td>
+          <td class="px-3 py-2 text-slate-400">Exact days held. Also feeds the Gain/Day math below.</td>
         </tr>
         <tr>
-          <td class="px-3 py-2 font-semibold text-slate-100">Holding Period (months) <span class="text-slate-500 font-normal">(internal, Gain/Month only)</span></td>
-          <td class="px-3 py-2 text-cyan-300"><code>(sell_date &minus; buy_date).days &divide; 30</code></td>
-          <td class="px-3 py-2 text-slate-400">Approximate months held -- a simple day/30 conversion, not calendar-month-aware. Not shown directly anywhere; it only feeds the Gain/Month calculation below.</td>
-        </tr>
-        <tr>
-          <td class="px-3 py-2 font-semibold text-slate-100">Gain / Month</td>
-          <td class="px-3 py-2 text-cyan-300"><code>% Gain &divide; Holding Period (months)</code></td>
-          <td class="px-3 py-2 text-slate-400">Return rate normalized by how long the trade was held. 0 if held under a month (rounds to 0 holding period).</td>
+          <td class="px-3 py-2 font-semibold text-slate-100">Gain / Day</td>
+          <td class="px-3 py-2 text-cyan-300"><code>Gain &divide; Hold (days)</code></td>
+          <td class="px-3 py-2 text-slate-400">Dollar gain normalized by exactly how many days the trade was held. 0 for a same-day open-and-close trade (0-day hold).</td>
         </tr>
         <tr>
           <td class="px-3 py-2 font-semibold text-slate-100">Gain Type</td>
@@ -192,9 +187,8 @@
           <td class="px-3 py-2 font-semibold text-slate-100">Avg Hold Period</td>
           <td class="px-3 py-2 text-cyan-300"><code>average(Sell Date &minus; Buy Date, in days)</code></td>
           <td class="px-3 py-2 text-slate-400">
-            Computed directly in days, matching the Trade Log's own Hold (days) column --
-            both come straight from the actual dates, rather than the internal /30
-            "Holding Period (months)" approximation used only for the Gain/Month formula.
+            Computed directly in days, matching the Trade Log's own Hold (days) and Gain/Day columns --
+            all three come straight from the actual dates.
           </td>
         </tr>
         <tr>

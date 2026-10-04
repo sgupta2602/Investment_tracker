@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS closed_trades (
     quantity REAL NOT NULL,
     equity_type TEXT NOT NULL,
     expiration TEXT,
+    right TEXT,
     sell_price REAL NOT NULL,
     strike_price REAL,
     cost_price REAL NOT NULL,
@@ -49,7 +50,7 @@ CREATE TABLE IF NOT EXISTS closed_trades (
     hold_period_months REAL,
     gain_loss REAL,
     pct_gain_loss REAL,
-    gain_per_month REAL,
+    gain_per_day REAL,
     gain_type TEXT,
     cumulative_gain REAL,
     cumulative_gain_pct REAL,
@@ -83,6 +84,41 @@ CREATE TABLE IF NOT EXISTS trade_annotations (
     reason TEXT,
     updated_at TEXT NOT NULL
 );
+
+-- Manual "I know what I paid, the statement with the opening trade just
+-- isn't uploaded yet" notes for Needs Review's "missing an opening trade"
+-- table. Purely informational -- never read by calc.py/matching.py, never
+-- shown in Trade Log, never feeds gain/loss or tax. Keyed by a natural key
+-- (account + symbol + close date, see repository.unmatched_close_key())
+-- rather than anything from matching.py's output, since unmatched_closes
+-- itself is recomputed fresh on every request, never persisted. Pruned
+-- automatically in main.py._rebuild_closed_trades() the moment the real
+-- opening trade shows up and that row stops appearing in Needs Review at
+-- all -- see repository.prune_stale_unmatched_close_overrides().
+CREATE TABLE IF NOT EXISTS unmatched_close_overrides (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    override_key TEXT NOT NULL UNIQUE,
+    buy_date TEXT,
+    cost_price REAL,
+    updated_at TEXT NOT NULL
+);
+
+-- Manual notes for the Open Positions tab: Current Price (there's no live
+-- market-quote feed in this app, so an unrealized % Gain needs somewhere
+-- to get a comparison price from) and free-form Comments. Keyed the same
+-- way as unmatched_close_overrides above -- a natural key (account +
+-- symbol + open date, see repository.open_position_key()) rather than
+-- anything persisted, since open_positions is recomputed fresh from
+-- match_transactions() on every request. Pruned automatically once a
+-- position is fully closed and stops appearing in Open Positions at all
+-- -- see repository.prune_stale_open_position_overrides().
+CREATE TABLE IF NOT EXISTS open_position_overrides (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    override_key TEXT NOT NULL UNIQUE,
+    current_price REAL,
+    comments TEXT,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -106,6 +142,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
             raise
     try:
         conn.execute("ALTER TABLE closed_trades ADD COLUMN is_adjusted INTEGER NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        if "duplicate column" not in str(e):
+            raise
+    try:
+        conn.execute("ALTER TABLE closed_trades ADD COLUMN right TEXT")
+    except sqlite3.OperationalError as e:
+        if "duplicate column" not in str(e):
+            raise
+    try:
+        conn.execute("ALTER TABLE closed_trades ADD COLUMN gain_per_day REAL")
     except sqlite3.OperationalError as e:
         if "duplicate column" not in str(e):
             raise

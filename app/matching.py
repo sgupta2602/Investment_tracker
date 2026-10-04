@@ -52,6 +52,7 @@ class ClosedTrade:
     sell_price: float  # fee-net
     strike_price: Optional[float] = None
     expiration: Optional[datetime] = None
+    right: Optional[str] = None  # "C" | "P", options only
     upload_id: Optional[int] = None
     is_adjusted: bool = False
 
@@ -138,6 +139,7 @@ def match_transactions(transactions: list[Transaction]) -> MatchResult:
                         sell_price=effective_sell_price,
                         strike_price=txn.strike,
                         expiration=txn.expiration,
+                        right=txn.right,
                         is_adjusted=txn.is_adjusted,
                     )
                 )

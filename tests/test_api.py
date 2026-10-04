@@ -565,6 +565,50 @@ def test_overview_shows_performance_charts_after_upload(client):
     assert "monthlyChart" in resp.text
     assert "yearlyChart" in resp.text
     assert "Year-over-Year Gain" in resp.text
+    assert "equityChart" in resp.text
+    assert "withdrawalsChart" in resp.text
+    assert "Total Losses" in resp.text
+
+
+def test_overview_withdrawals_chart_reflects_transfer_out_events(client):
+    """Withdrawals Over Time must pick up BOTH transfer actions this app
+    tracks whenever the amount is negative -- a MoneyLink transfer to a
+    linked bank, and a Journal transfer to a different brokerage account.
+    """
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/10/2026","MoneyLink Transfer","","TRANSFER TO BANK","","","","-$2500.00"\n'
+        '"01/15/2026","Journal","","JOURNAL TO ...556","","","","-$1000.00"\n'
+    )
+    resp = client.post("/upload", files={"file": ("transfers.csv", csv_content, "text/csv")})
+    overview = client.get("/overview")
+    assert overview.status_code == 200
+    assert "3500" in overview.text  # 2500 + 1000 combined into Jan 2026's withdrawn total
+
+
+def test_overview_year_filter_hidden_with_only_one_year(client):
+    with open(FIXTURE, "rb") as f:
+        client.post("/upload", files={"file": ("sample_transactions.csv", f, "text/csv")})
+    resp = client.get("/overview")
+    assert 'id="year-select"' not in resp.text
+
+
+def test_overview_year_filter_scopes_trade_count_to_one_year(client):
+    csv_content = (
+        '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
+        '"01/02/2025","Buy","OLD","OLD CO","10","$10.00","","-$100.00"\n'
+        '"01/05/2025","Sell","OLD","OLD CO","10","$12.00","","$120.00"\n'
+        '"02/02/2026","Buy","NEW","NEW CO","10","$10.00","","-$100.00"\n'
+        '"02/05/2026","Sell","NEW","NEW CO","10","$15.00","","$150.00"\n'
+    )
+    client.post("/upload", files={"file": ("two_years.csv", csv_content, "text/csv")})
+
+    combined = client.get("/overview")
+    assert "2 closed trades" in combined.text
+
+    scoped = client.get("/overview?year=2025")
+    assert "1 closed trades" in scoped.text
+    assert '<option value="2025" selected>2025</option>' in scoped.text
 
 
 def test_overview_account_filter_hidden_with_only_one_account(client):
@@ -928,10 +972,10 @@ def test_open_positions_total_carries_cost_value_for_live_filtering(client):
 
 
 def test_needs_review_sections_show_counts_and_sequential_row_numbers(client):
-    """Both Needs Review tables (and the main Trade Log) should show a
-    running '#' index down the left and the total count of rows right
-    in each section heading, so 'how many do I have' never requires
-    manually counting rows."""
+    """Needs Review's unmatched-closes table and the separate Open Positions
+    tab should each show a running '#' index down the left and the total
+    count of rows right in the section heading (or tab badge), so 'how many
+    do I have' never requires manually counting rows."""
     csv_content = (
         '"Date","Action","Symbol","Description","Quantity","Price","Fees & Comm","Amount"\n'
         '"01/05/2026","Buy to Open","AAA 06/19/2026 50.00 C","CALL AAA","2","$3.00","$0.00","-$600.00"\n'
@@ -939,8 +983,8 @@ def test_needs_review_sections_show_counts_and_sequential_row_numbers(client):
         '"02/01/2026","Sell to Close","CCC 06/19/2026 10.00 C","CALL CCC","1","$2.00","$0.00","$200.00"\n'
     )
     dashboard = client.post("/upload", files={"file": ("needs_review.csv", csv_content, "text/csv")})
-    assert "Still-open positions (no closing trade yet)" in dashboard.text
-    assert "<span class=\"text-slate-500 font-normal\">(2)</span>" in dashboard.text
+    assert "Open Positions" in dashboard.text
+    assert 'id="tab-btn-positions"' in dashboard.text
     assert "Closed positions missing an opening trade" in dashboard.text
     assert "<span class=\"text-slate-500 font-normal\">(1)</span>" in dashboard.text
 

@@ -21,7 +21,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app import repository as repo
 from app.db import init_db
-from app.income import event_totals, extract_cash_events, filter_income_events
+from app.income import dividend_breakdown, event_totals, extract_cash_events, filter_income_events
 from app.calc import LONG_TERM_RATE, LONG_TERM_THRESHOLD_DAYS, SHORT_TERM_RATE, enrich_trades
 from app.matching import OPTION_MULTIPLIER, match_transactions
 from app.parsing import extract_account_label, parse_transactions_csv
@@ -29,8 +29,11 @@ from app.quotes import random_quote
 from app.transfers import filter_transfer_events
 from app.summary import (
     available_year_months,
+    available_years,
     cumulative_gain_series,
+    equity_curve,
     filter_by_months,
+    filter_by_year,
     gains_losses_by_term,
     monthly_performance,
     performance_by_month,
@@ -39,6 +42,7 @@ from app.summary import (
     performance_by_year,
     performance_stats,
     top_bottom_tickers,
+    withdrawals_by_month,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -240,12 +244,28 @@ def _rebuild_closed_trades() -> None:
             "sell_price": t.sell_price,
             "strike_price": t.strike_price,
             "expiration": t.expiration,
+            "right": t.right,
             "is_adjusted": t.is_adjusted,
         }
         for t in raw_trades
     ]
     enriched = enrich_trades(trade_dicts)
     repo.replace_closed_trades(enriched)
+
+    # Any manual Buy Date/Cost Price note on Needs Review whose row no
+    # longer appears here at all just got resolved for real (the opening
+    # trade arrived, or the close itself disappeared) -- clear it out
+    # rather than leaving it orphaned. Reuses this rebuild's own match
+    # result instead of re-running match_transactions() a second time.
+    current_unmatched_keys = {repo.unmatched_close_key(u) for u in match_result.unmatched_closes}
+    repo.prune_stale_unmatched_close_overrides(current_unmatched_keys)
+
+    # Same idea for Open Positions' manual Current Price/Comments notes --
+    # a position that's now fully closed (real Sell/Sell to Close/Expired
+    # arrived, or its opening trade was deleted) shouldn't leave a stale
+    # note behind.
+    current_open_keys = {repo.open_position_key(p) for p in match_result.open_positions}
+    repo.prune_stale_open_position_overrides(current_open_keys)
 
 
 @app.post("/delete_upload/{upload_id}")
@@ -298,6 +318,47 @@ async def save_trade_annotation(request: Request):
     if not key or field not in repo.ANNOTATION_FIELDS:
         return JSONResponse({"ok": False, "error": "invalid field or trade_key"}, status_code=400)
     repo.save_trade_annotation_field(key, field, value)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/unmatched_close_override")
+async def save_unmatched_close_override(request: Request):
+    """Auto-save endpoint for Needs Review's editable Buy Date / Cost
+    Price columns on the 'missing an opening trade' table -- same pattern
+    as /trade_annotation. Purely a memo for you until the real statement
+    arrives; main.py._rebuild_closed_trades() auto-clears it the moment
+    that happens (see repository.prune_stale_unmatched_close_overrides)."""
+    body = await request.json()
+    key = body.get("key", "")
+    field = body.get("field", "")
+    value = (body.get("value") or "").strip()
+    if not key or field not in repo.UNMATCHED_OVERRIDE_FIELDS:
+        return JSONResponse({"ok": False, "error": "invalid field or key"}, status_code=400)
+    try:
+        repo.save_unmatched_close_override_field(key, field, value)
+    except ValueError:
+        return JSONResponse({"ok": False, "error": "invalid value"}, status_code=400)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/open_position_override")
+async def save_open_position_override(request: Request):
+    """Auto-save endpoint for the Open Positions tab's editable Current
+    Price / Comments columns -- same pattern as /unmatched_close_override.
+    Current Price exists purely so % Gain has something to compare the
+    open price against (no live market-quote feed in this app); both are
+    auto-cleared once the position is fully closed for real (see
+    repository.prune_stale_open_position_overrides)."""
+    body = await request.json()
+    key = body.get("key", "")
+    field = body.get("field", "")
+    value = (body.get("value") or "").strip()
+    if not key or field not in repo.OPEN_POSITION_OVERRIDE_FIELDS:
+        return JSONResponse({"ok": False, "error": "invalid field or key"}, status_code=400)
+    try:
+        repo.save_open_position_override_field(key, field, value)
+    except ValueError:
+        return JSONResponse({"ok": False, "error": "invalid value"}, status_code=400)
     return JSONResponse({"ok": True})
 
 
@@ -408,8 +469,8 @@ def dashboard(request: Request, upload_id: str):
     # "what needs my attention" should always mean the full current book,
     # not just a performance-analysis window.
     match_result = match_transactions(repo.load_all_transactions())
-    open_positions = _scoped(match_result.open_positions)
-    unmatched_closes = _scoped(match_result.unmatched_closes)
+    open_positions = repo.attach_open_position_overrides(_scoped(match_result.open_positions))
+    unmatched_closes = repo.attach_unmatched_close_overrides(_scoped(match_result.unmatched_closes))
 
     ticker_breakdown = performance_by_ticker(month_trades)
     top_tickers, bottom_tickers = top_bottom_tickers(ticker_breakdown)
@@ -441,6 +502,7 @@ def dashboard(request: Request, upload_id: str):
             "term_breakdown": gains_losses_by_term(month_trades),
             "income_events": income_events,
             "income_totals": event_totals(income_events),
+            "dividend_breakdown": dividend_breakdown(income_events),
             "transfer_events": transfer_events,
             "transfer_totals": event_totals(transfer_events),
             "unmatched_closes": unmatched_closes,
@@ -461,11 +523,33 @@ def overview(request: Request):
     # keeps listing every account no matter which one is currently selected.
     accounts = sorted({t["account"] for t in all_trades_unfiltered if t.get("account")})
     selected_account = request.query_params.get("account") or None
-    all_trades = _scoped_by_account(all_trades_unfiltered, selected_account)
+    account_trades = _scoped_by_account(all_trades_unfiltered, selected_account)
+
+    # Transfers feed both the Withdrawals chart and the Equity Curve --
+    # scoped by account the same way trades are, so "Account: XX111"
+    # means the exact same slice of history on every number on this page.
+    all_income_unfiltered = repo.load_all_income_events()
+    account_transfers = filter_transfer_events(_scoped_by_account(all_income_unfiltered, selected_account))
+
+    # Year options are always computed from the account-scoped (but NOT
+    # yet year-filtered) data -- same principle as the Account dropdown
+    # above always listing every account regardless of the current pick.
+    years = available_years(account_trades, account_transfers)
+    selected_year = request.query_params.get("year") or None
+    if selected_year not in years:
+        selected_year = None
+
+    if selected_year:
+        all_trades = filter_by_year(account_trades, "sell_date", selected_year)
+        transfer_events = filter_by_year(account_transfers, "date", selected_year)
+    else:
+        all_trades = account_trades
+        transfer_events = account_transfers
 
     monthly_series = performance_by_month(all_trades)
     yearly_series = performance_by_year(all_trades)
     cumulative_points = cumulative_gain_series(all_trades)
+    term_breakdown = gains_losses_by_term(all_trades)
 
     return templates.TemplateResponse(
         request,
@@ -474,11 +558,19 @@ def overview(request: Request):
             "uploads": uploads,
             "accounts": accounts,
             "selected_account": selected_account,
+            "years": years,
+            "selected_year": selected_year,
             "performance": monthly_performance(all_trades),
-            "term_breakdown": gains_losses_by_term(all_trades),
+            "term_breakdown": term_breakdown,
+            # Gains-by-Term's "losses" buckets are already negative --
+            # summed as-is so the stat card renders the same red-negative
+            # convention as every other loss figure in this app.
+            "total_losses": term_breakdown["short"]["losses"] + term_breakdown["long"]["losses"],
             "monthly_series": monthly_series,
             "yearly_series": yearly_series,
             "cumulative_points": cumulative_points,
+            "withdrawals_series": withdrawals_by_month(transfer_events),
+            "equity_points": equity_curve(all_trades, transfer_events),
             "trade_count": len(all_trades),
             "recommender_breakdown": performance_by_recommender(all_trades),
         },

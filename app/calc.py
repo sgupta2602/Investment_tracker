@@ -5,16 +5,26 @@ Tax rates are fixed per user decision:
   * Long-term (held > 365 days): 20%
   * Short-term: 37%
 Only applied to *gains* (a losing trade owes no tax), matching the sheet.
+
+Dividend income gets its own pair of rates on the Gains/Losses/Tax tab
+(see income.dividend_breakdown) since the IRS genuinely taxes it
+differently from capital gains -- 'Qualified Dividend' gets a
+preferential rate like long-term gains, everything else dividend-related
+is ordinary income like short-term gains. Deliberately distinct constants
+from LONG_TERM_RATE/SHORT_TERM_RATE above (per user decision, these are
+higher/lower than the stock rates, not copies of them).
 """
 from __future__ import annotations
 
 LONG_TERM_RATE = 0.20
 SHORT_TERM_RATE = 0.37
 LONG_TERM_THRESHOLD_DAYS = 365
+DIVIDEND_LONG_TERM_RATE = 0.25
+DIVIDEND_SHORT_TERM_RATE = 0.42
 
 
-def _gain_type(buy_date, sell_date) -> str:
-    return "Long" if (sell_date - buy_date).days > LONG_TERM_THRESHOLD_DAYS else "Short"
+def _gain_type(hold_days: int) -> str:
+    return "Long" if hold_days > LONG_TERM_THRESHOLD_DAYS else "Short"
 
 
 def _tax_rate(gain_type: str) -> float:
@@ -35,9 +45,10 @@ def enrich_trades(trades: list[dict]) -> list[dict]:
         cost_basis = t["quantity"] * t["cost_price"]
         gain_loss = realized_value - cost_basis
         pct_gain_loss = (gain_loss / cost_basis) if cost_basis else 0.0
-        hold_period_months = (t["sell_date"] - t["buy_date"]).days / 30
-        gain_per_month = (pct_gain_loss / hold_period_months) if hold_period_months else 0.0
-        gain_type = _gain_type(t["buy_date"], t["sell_date"])
+        hold_period_days = (t["sell_date"] - t["buy_date"]).days
+        hold_period_months = hold_period_days / 30
+        gain_per_day = (gain_loss / hold_period_days) if hold_period_days else 0.0
+        gain_type = _gain_type(hold_period_days)
         # Sheet's "Break Even" (J) = Strike Price + Cost Price, both per-unit.
         # For Shares, Strike Price is blank -- Excel treats a blank cell as 0
         # in addition, so Break Even collapses to just Cost Price. Purely
@@ -63,7 +74,7 @@ def enrich_trades(trades: list[dict]) -> list[dict]:
                 "hold_period_months": hold_period_months,
                 "gain_loss": gain_loss,
                 "pct_gain_loss": pct_gain_loss,
-                "gain_per_month": gain_per_month,
+                "gain_per_day": gain_per_day,
                 "gain_type": gain_type,
                 "cumulative_gain": cumulative_gain,
                 "cumulative_gain_pct": cumulative_gain_pct,

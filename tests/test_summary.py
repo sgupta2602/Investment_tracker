@@ -3,14 +3,18 @@ from datetime import datetime
 
 from app.summary import (
     available_year_months,
+    available_years,
     cumulative_gain_series,
+    equity_curve,
     filter_by_months,
+    filter_by_year,
     performance_by_month,
     performance_by_recommender,
     performance_by_ticker,
     performance_by_year,
     performance_stats,
     top_bottom_tickers,
+    withdrawals_by_month,
 )
 
 
@@ -267,3 +271,65 @@ def test_top_bottom_tickers_empty_input():
     top, bottom = top_bottom_tickers([], n=5)
     assert top == []
     assert bottom == []
+
+
+def test_available_years_combines_trades_and_cash_events_deduped_newest_first():
+    trades = [_trade(sell_date=datetime(2025, 6, 1)), _trade(sell_date=datetime(2026, 1, 1))]
+    cash_events = [{"date": datetime(2026, 1, 20)}, {"date": datetime(2024, 3, 1)}]
+
+    years = available_years(trades, cash_events)
+
+    assert years == ["2026", "2025", "2024"]
+
+
+def test_filter_by_year_keeps_only_matching_calendar_year():
+    trades = [
+        _trade(ticker="A", sell_date=datetime(2025, 12, 31)),
+        _trade(ticker="B", sell_date=datetime(2026, 1, 1)),
+        _trade(ticker="C", sell_date=datetime(2026, 6, 15)),
+    ]
+    kept = filter_by_year(trades, "sell_date", "2026")
+    assert {t["ticker"] for t in kept} == {"B", "C"}
+
+
+def _transfer(**overrides):
+    base = {"date": datetime(2026, 1, 10), "action": "MoneyLink Transfer", "amount": -1000.0}
+    base.update(overrides)
+    return base
+
+
+def test_withdrawals_by_month_splits_withdrawn_from_deposited_as_positive_figures():
+    events = [
+        _transfer(date=datetime(2026, 1, 5), amount=-2500.0),
+        _transfer(date=datetime(2026, 1, 20), amount=500.0),  # a deposit that same month
+        _transfer(date=datetime(2026, 2, 1), action="Journal", amount=-1000.0),
+    ]
+    series = withdrawals_by_month(events)
+    by_month = {row["month"]: row for row in series}
+
+    assert by_month["2026-01"]["withdrawn"] == 2500.0  # reported positive, not -2500
+    assert by_month["2026-01"]["deposited"] == 500.0
+    assert by_month["2026-02"]["withdrawn"] == 1000.0  # Journal-out counts as withdrawn too
+
+
+def test_withdrawals_by_month_sorted_chronologically():
+    events = [_transfer(date=datetime(2026, 3, 1)), _transfer(date=datetime(2026, 1, 1))]
+    series = withdrawals_by_month(events)
+    assert [row["month"] for row in series] == ["2026-01", "2026-03"]
+
+
+def test_equity_curve_merges_trades_and_transfers_chronologically():
+    trades = [_trade(sell_date=datetime(2026, 1, 15), gain_loss=200.0)]
+    transfers = [
+        _transfer(date=datetime(2026, 1, 1), amount=5000.0),  # deposit first
+        _transfer(date=datetime(2026, 1, 20), amount=-1000.0),  # withdrawal after the trade
+    ]
+    points = equity_curve(trades, transfers)
+    assert [p["value"] for p in points] == [5000.0, 5200.0, 4200.0]
+
+
+def test_equity_curve_excludes_nothing_but_trades_and_transfers():
+    """No live quote feed exists -- the curve must be derivable purely
+    from realized gain/loss plus transfer amounts, nothing else."""
+    points = equity_curve([], [])
+    assert points == []

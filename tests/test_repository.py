@@ -111,7 +111,7 @@ def _enriched_row(trade: dict) -> list[dict]:
             "hold_period_months": 0.27,
             "gain_loss": 400.0,
             "pct_gain_loss": 2.0,
-            "gain_per_month": 7.4,
+            "gain_per_day": 7.4,
             "gain_type": "Short",
             "cumulative_gain": 400.0,
             "cumulative_gain_pct": 2.0,

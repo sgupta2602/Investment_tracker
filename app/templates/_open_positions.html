@@ -1,0 +1,228 @@
+<h2 class="text-lg font-semibold mb-1 text-slate-100">Open Positions</h2>
+<p class="text-xs text-slate-500 mb-4">
+  Positions you've bought or opened that haven't closed yet -- reflects your full current book, not the period selected above.
+</p>
+{% if not open_positions %}
+<p class="text-slate-400 text-sm">None -- everything you've bought or opened has been closed out.</p>
+{% else %}
+<div class="flex flex-wrap items-end gap-3 mb-3">
+  <div>
+    <label for="open-ticker-search" class="block text-xs font-semibold text-slate-400 mb-1">Search ticker</label>
+    <input
+      type="text"
+      id="open-ticker-search"
+      placeholder="e.g. ABCL"
+      oninput="filterOpenPositions()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    />
+  </div>
+  <div>
+    <label for="open-date-from" class="block text-xs font-semibold text-slate-400 mb-1">Open date from</label>
+    <input
+      type="date"
+      id="open-date-from"
+      onchange="filterOpenPositions()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    />
+  </div>
+  <div>
+    <label for="open-date-to" class="block text-xs font-semibold text-slate-400 mb-1">Open date to</label>
+    <input
+      type="date"
+      id="open-date-to"
+      onchange="filterOpenPositions()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    />
+  </div>
+  <div>
+    <label for="open-equity-type-filter" class="block text-xs font-semibold text-slate-400 mb-1">Type</label>
+    <select
+      id="open-equity-type-filter"
+      onchange="filterOpenPositions()"
+      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+    >
+      <option value="">All (Options + Shares)</option>
+      <option value="options">Options only</option>
+      <option value="shares">Shares only</option>
+    </select>
+  </div>
+  <button
+    type="button"
+    onclick="clearOpenPositionFilters()"
+    class="text-sm font-semibold text-cyan-400 underline hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded px-1 py-1.5"
+  >
+    Clear filters
+  </button>
+  <span id="open-positions-count" role="status" aria-live="polite" class="text-xs text-slate-500 ml-auto"></span>
+</div>
+<div class="overflow-x-auto rounded-lg border border-slate-800">
+  <table class="min-w-full text-sm">
+    <caption class="sr-only">Positions opened but not yet closed -- filterable by ticker and open date</caption>
+    <thead class="bg-slate-800 text-slate-200">
+      <tr>
+        <th scope="col" class="px-3 py-2 text-right">#</th>
+        {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
+        <th scope="col" class="px-3 py-2 text-left">Ticker</th>
+        <th scope="col" class="px-3 py-2 text-left">Equity Type</th>
+        <th scope="col" class="px-3 py-2 text-left">Open Date</th>
+        <th scope="col" class="px-3 py-2 text-left">Expiration</th>
+        <th scope="col" class="px-3 py-2 text-right">Strike</th>
+        <th scope="col" class="px-3 py-2 text-left">Type</th>
+        <th scope="col" class="px-3 py-2 text-right">Units</th>
+        <th scope="col" class="px-3 py-2 text-right">Open Price</th>
+        <th scope="col" class="px-3 py-2 text-right">Break Even</th>
+        <th scope="col" class="px-3 py-2 text-right">Current Price <span class="text-amber-400 font-normal">(manual)</span></th>
+        <th scope="col" class="px-3 py-2 text-right">% Gain</th>
+        <th scope="col" class="px-3 py-2 text-right">Cost Value</th>
+        <th scope="col" class="px-3 py-2 text-left">Comments <span class="text-amber-400 font-normal">(manual)</span></th>
+      </tr>
+    </thead>
+    <tbody id="open-positions-body" class="bg-slate-900">
+      {% for p in open_positions %}
+      <tr
+        data-ticker="{{ p.ticker|lower }}"
+        data-open-date="{{ p.open_date.strftime('%Y-%m-%d') }}"
+        data-equity-type="{{ p.equity_type|lower }}"
+        data-cost-value="{{ p.cost_value }}"
+        class="border-t border-slate-800 hover:bg-slate-800/50"
+      >
+        <td class="px-3 py-1 text-right text-slate-500">{{ loop.index }}</td>
+        {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ p.account }}</td>{% endif %}
+        <td class="px-3 py-1 font-medium text-slate-100">{{ p.ticker }}{% set is_adj = p.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
+        <td class="px-3 py-1 text-slate-300">{{ p.equity_type }}</td>
+        <td class="px-3 py-1 text-slate-300">{{ p.open_date.strftime('%m/%d/%Y') }}</td>
+        <td class="px-3 py-1 text-slate-300">{{ p.expiration.strftime('%m/%d/%Y') if p.expiration else '--' }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ p.strike | usd if p.strike is not none else '--' }}</td>
+        <td class="px-3 py-1 text-slate-300">{{ 'Call' if p.right == 'C' else ('Put' if p.right == 'P' else '--') }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ "%.0f"|format(p.remaining_units) }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ p.unit_price | usd }}</td>
+        <td class="px-3 py-1 text-right text-slate-300">{{ p.break_even | usd }}</td>
+        <td class="px-3 py-1">
+          <input type="number" step="0.01" placeholder="0.00" class="open-position-override-input bg-slate-800 border border-amber-700/60 text-slate-200 rounded px-1.5 py-1 text-xs w-20 text-right focus:outline-none focus:ring-1 focus:ring-amber-500"
+                 data-override-key="{{ p.override_key }}" data-field="current_price" value="{{ p.current_price }}"
+                 aria-label="Manually entered current price, for {{ p.ticker }} opened {{ p.open_date.strftime('%m/%d/%Y') }}" onblur="saveOpenPositionOverride(this)" oninput="recalcPctGain(this)" />
+        </td>
+        <td class="px-3 py-1 text-right pct-gain-cell {{ 'text-emerald-400' if p.pct_gain is not none and p.pct_gain >= 0 else ('text-rose-400' if p.pct_gain is not none else 'text-slate-500') }}" data-unit-price="{{ p.unit_price }}">
+          {{ (p.pct_gain | pct) if p.pct_gain is not none else '--' }}
+        </td>
+        <td class="px-3 py-1 text-right font-semibold text-amber-300">{{ p.cost_value | usd }}</td>
+        <td class="px-3 py-1">
+          <input type="text" placeholder="Why you're holding, exit plan, etc." class="open-position-override-input bg-slate-800 border border-amber-700/60 text-slate-200 rounded px-1.5 py-1 text-xs w-40 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                 data-override-key="{{ p.override_key }}" data-field="comments" value="{{ p.comments }}"
+                 aria-label="Comments, for {{ p.ticker }} opened {{ p.open_date.strftime('%m/%d/%Y') }}" onblur="saveOpenPositionOverride(this)" />
+        </td>
+      </tr>
+      {% endfor %}
+      <tr id="open-positions-empty-row" hidden>
+        <td colspan="{{ 15 if accounts|length > 1 else 14 }}" class="px-3 py-4 text-center text-slate-400">No open positions match your filters.</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
+        <td colspan="{{ 13 if accounts|length > 1 else 12 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake <span id="open-positions-total-label" class="font-normal text-slate-500"></span></td>
+        <td id="open-positions-total-cost-value" class="px-3 py-2 text-right text-amber-300">{{ open_positions_cost_value | usd }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+<p class="text-xs text-slate-500 mt-2">Filtering only changes what's shown -- and so does this total: it's the sum of just the currently visible open positions, so filtering to Shares only (or Options only, a ticker, or a date range) shows that slice's money-at-stake on its own instead of everything combined.</p>
+<p class="text-xs text-slate-500 mt-1">
+  <strong class="text-amber-400">Current Price / Comments</strong> are manual fields -- there's no live market-quote feed in
+  this app, so type in what you're seeing elsewhere to get a rough <strong class="text-slate-300">% Gain</strong>
+  (updates as you type, before you even click away). Both save automatically on blur. Once a position is fully
+  closed out (the real Sell / Sell to Close / Expired shows up in a future upload), it drops off this list and
+  whatever you'd typed here is automatically deleted too.
+</p>
+<script>
+  function formatUsd(value) {
+    const sign = value < 0 ? "-$" : "$";
+    return sign + Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatPct(value) {
+    return (value * 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+  }
+
+  function recalcPctGain(el) {
+    // Live preview only -- the persisted % Gain (shown again on the next
+    // page load) comes from the server, computed the same way, once the
+    // Current Price value has actually been saved via saveOpenPositionOverride().
+    const row = el.closest("tr");
+    const cell = row.querySelector(".pct-gain-cell");
+    const unitPrice = parseFloat(cell.dataset.unitPrice);
+    const current = parseFloat(el.value);
+    if (!el.value || isNaN(current) || !unitPrice) {
+      cell.textContent = "--";
+      cell.classList.remove("text-emerald-400", "text-rose-400");
+      cell.classList.add("text-slate-500");
+      return;
+    }
+    const pct = (current - unitPrice) / unitPrice;
+    cell.textContent = formatPct(pct);
+    cell.classList.remove("text-slate-500", "text-emerald-400", "text-rose-400");
+    cell.classList.add(pct >= 0 ? "text-emerald-400" : "text-rose-400");
+  }
+
+  async function saveOpenPositionOverride(el) {
+    const payload = {
+      key: el.dataset.overrideKey,
+      field: el.dataset.field,
+      value: el.value,
+    };
+    el.classList.remove("border-emerald-500", "border-rose-500");
+    let ok = false;
+    try {
+      const resp = await fetch("/open_position_override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      ok = resp.ok;
+    } catch (e) {
+      ok = false;
+    }
+    el.classList.add(ok ? "border-emerald-500" : "border-rose-500");
+    setTimeout(() => el.classList.remove("border-emerald-500", "border-rose-500"), 1500);
+  }
+
+  function filterOpenPositions() {
+    const search = document.getElementById("open-ticker-search").value.trim().toLowerCase();
+    const from = document.getElementById("open-date-from").value;
+    const to = document.getElementById("open-date-to").value;
+    const equityType = document.getElementById("open-equity-type-filter").value;
+    const rows = document.querySelectorAll("#open-positions-body tr[data-ticker]");
+    let visible = 0;
+    let totalCostValue = 0;
+    rows.forEach((row) => {
+      const matchesTicker = !search || row.dataset.ticker.includes(search);
+      const matchesFrom = !from || row.dataset.openDate >= from;
+      const matchesTo = !to || row.dataset.openDate <= to;
+      const matchesEquityType = !equityType || row.dataset.equityType === equityType;
+      const show = matchesTicker && matchesFrom && matchesTo && matchesEquityType;
+      row.hidden = !show;
+      if (show) {
+        visible++;
+        totalCostValue += parseFloat(row.dataset.costValue);
+      }
+    });
+    document.getElementById("open-positions-count").textContent = visible + " of " + rows.length + " positions shown";
+    const emptyRow = document.getElementById("open-positions-empty-row");
+    if (emptyRow) emptyRow.hidden = visible !== 0;
+
+    document.getElementById("open-positions-total-cost-value").textContent = formatUsd(totalCostValue);
+    document.getElementById("open-positions-total-label").textContent =
+      visible === rows.length ? "" : "(" + visible + " filtered position" + (visible !== 1 ? "s" : "") + ")";
+  }
+
+  function clearOpenPositionFilters() {
+    document.getElementById("open-ticker-search").value = "";
+    document.getElementById("open-date-from").value = "";
+    document.getElementById("open-date-to").value = "";
+    document.getElementById("open-equity-type-filter").value = "";
+    filterOpenPositions();
+  }
+
+  filterOpenPositions();
+</script>
+{% endif %}

@@ -14,13 +14,15 @@
       <tr>
         <th scope="col" class="px-3 py-2 text-right">#</th>
         {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
-        <th scope="col" class="px-3 py-2 text-left">Close Date</th>
+        <th scope="col" class="px-3 py-2 text-left">Sell Date</th>
         <th scope="col" class="px-3 py-2 text-left">Ticker</th>
         <th scope="col" class="px-3 py-2 text-left">Equity Type</th>
         <th scope="col" class="px-3 py-2 text-left">Expiration</th>
         <th scope="col" class="px-3 py-2 text-right">Strike</th>
         <th scope="col" class="px-3 py-2 text-left">Type</th>
         <th scope="col" class="px-3 py-2 text-right">Unmatched Units</th>
+        <th scope="col" class="px-3 py-2 text-left">Buy Date <span class="text-amber-400 font-normal">(manual)</span></th>
+        <th scope="col" class="px-3 py-2 text-right">Cost Price <span class="text-amber-400 font-normal">(manual)</span></th>
         <th scope="col" class="px-3 py-2 text-left">Why</th>
       </tr>
     </thead>
@@ -36,168 +38,56 @@
         <td class="px-3 py-1 text-right text-slate-300">{{ u.strike | usd if u.strike is not none else '--' }}</td>
         <td class="px-3 py-1 text-slate-300">{{ 'Call' if u.right == 'C' else ('Put' if u.right == 'P' else '--') }}</td>
         <td class="px-3 py-1 text-right text-slate-300">{{ "%.0f"|format(u.unmatched_units) }}</td>
+        <td class="px-3 py-1">
+          <input type="date" class="unmatched-override-input bg-slate-800 border border-amber-700/60 text-slate-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+                 data-override-key="{{ u.override_key }}" data-field="buy_date" value="{{ u.buy_date }}"
+                 aria-label="Manually entered buy date, for {{ u.ticker }} closed {{ u.date.strftime('%m/%d/%Y') }}" onblur="saveUnmatchedOverride(this)" />
+        </td>
+        <td class="px-3 py-1">
+          <input type="number" step="0.01" placeholder="0.00" class="unmatched-override-input bg-slate-800 border border-amber-700/60 text-slate-200 rounded px-1.5 py-1 text-xs w-20 text-right focus:outline-none focus:ring-1 focus:ring-amber-500"
+                 data-override-key="{{ u.override_key }}" data-field="cost_price" value="{{ u.cost_price }}"
+                 aria-label="Manually entered cost price, for {{ u.ticker }} closed {{ u.date.strftime('%m/%d/%Y') }}" onblur="saveUnmatchedOverride(this)" />
+        </td>
         <td class="px-3 py-1 text-slate-400">{{ u.reason }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
-<p class="text-xs text-slate-500 mb-6">
+<p class="text-xs text-slate-500 mb-1">
   Fix: upload the earlier statement that contains the opening trade for these -- the tracker
   will automatically re-match everything once it's in the system.
 </p>
-{% endif %}
-
-<h3 class="text-sm font-semibold mb-2 text-slate-200">Still-open positions (no closing trade yet) <span class="text-slate-500 font-normal">({{ open_positions | length }})</span></h3>
-{% if not open_positions %}
-<p class="text-slate-400 text-sm">None -- everything you've bought or opened has been closed out.</p>
-{% else %}
-<div class="flex flex-wrap items-end gap-3 mb-3">
-  <div>
-    <label for="open-ticker-search" class="block text-xs font-semibold text-slate-400 mb-1">Search ticker</label>
-    <input
-      type="text"
-      id="open-ticker-search"
-      placeholder="e.g. ABCL"
-      oninput="filterOpenPositions()"
-      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-    />
-  </div>
-  <div>
-    <label for="open-date-from" class="block text-xs font-semibold text-slate-400 mb-1">Open date from</label>
-    <input
-      type="date"
-      id="open-date-from"
-      onchange="filterOpenPositions()"
-      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-    />
-  </div>
-  <div>
-    <label for="open-date-to" class="block text-xs font-semibold text-slate-400 mb-1">Open date to</label>
-    <input
-      type="date"
-      id="open-date-to"
-      onchange="filterOpenPositions()"
-      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-    />
-  </div>
-  <div>
-    <label for="open-equity-type-filter" class="block text-xs font-semibold text-slate-400 mb-1">Type</label>
-    <select
-      id="open-equity-type-filter"
-      onchange="filterOpenPositions()"
-      class="bg-slate-900 border border-slate-700 text-slate-200 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
-    >
-      <option value="">All (Options + Shares)</option>
-      <option value="options">Options only</option>
-      <option value="shares">Shares only</option>
-    </select>
-  </div>
-  <button
-    type="button"
-    onclick="clearOpenPositionFilters()"
-    class="text-sm font-semibold text-cyan-400 underline hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded px-1 py-1.5"
-  >
-    Clear filters
-  </button>
-  <span id="open-positions-count" role="status" aria-live="polite" class="text-xs text-slate-500 ml-auto"></span>
-</div>
-<div class="overflow-x-auto rounded-lg border border-slate-800">
-  <table class="min-w-full text-sm">
-    <caption class="sr-only">Positions opened but not yet closed -- filterable by ticker and open date</caption>
-    <thead class="bg-slate-800 text-slate-200">
-      <tr>
-        <th scope="col" class="px-3 py-2 text-right">#</th>
-        {% if accounts | length > 1 %}<th scope="col" class="px-3 py-2 text-left">Account</th>{% endif %}
-        <th scope="col" class="px-3 py-2 text-left">Ticker</th>
-        <th scope="col" class="px-3 py-2 text-left">Equity Type</th>
-        <th scope="col" class="px-3 py-2 text-left">Open Date</th>
-        <th scope="col" class="px-3 py-2 text-left">Expiration</th>
-        <th scope="col" class="px-3 py-2 text-right">Strike</th>
-        <th scope="col" class="px-3 py-2 text-left">Type</th>
-        <th scope="col" class="px-3 py-2 text-right">Units</th>
-        <th scope="col" class="px-3 py-2 text-right">Open Price</th>
-        <th scope="col" class="px-3 py-2 text-right">Cost Value</th>
-      </tr>
-    </thead>
-    <tbody id="open-positions-body" class="bg-slate-900">
-      {% for p in open_positions %}
-      <tr
-        data-ticker="{{ p.ticker|lower }}"
-        data-open-date="{{ p.open_date.strftime('%Y-%m-%d') }}"
-        data-equity-type="{{ p.equity_type|lower }}"
-        data-cost-value="{{ p.cost_value }}"
-        class="border-t border-slate-800 hover:bg-slate-800/50"
-      >
-        <td class="px-3 py-1 text-right text-slate-500">{{ loop.index }}</td>
-        {% if accounts | length > 1 %}<td class="px-3 py-1 text-slate-300">{{ p.account }}</td>{% endif %}
-        <td class="px-3 py-1 font-medium text-slate-100">{{ p.ticker }}{% set is_adj = p.is_adjusted %}{% include '_adjusted_icon.html' %}</td>
-        <td class="px-3 py-1 text-slate-300">{{ p.equity_type }}</td>
-        <td class="px-3 py-1 text-slate-300">{{ p.open_date.strftime('%m/%d/%Y') }}</td>
-        <td class="px-3 py-1 text-slate-300">{{ p.expiration.strftime('%m/%d/%Y') if p.expiration else '--' }}</td>
-        <td class="px-3 py-1 text-right text-slate-300">{{ p.strike | usd if p.strike is not none else '--' }}</td>
-        <td class="px-3 py-1 text-slate-300">{{ 'Call' if p.right == 'C' else ('Put' if p.right == 'P' else '--') }}</td>
-        <td class="px-3 py-1 text-right text-slate-300">{{ "%.0f"|format(p.remaining_units) }}</td>
-        <td class="px-3 py-1 text-right text-slate-300">{{ p.unit_price | usd }}</td>
-        <td class="px-3 py-1 text-right font-semibold text-amber-300">{{ p.cost_value | usd }}</td>
-      </tr>
-      {% endfor %}
-      <tr id="open-positions-empty-row" hidden>
-        <td colspan="{{ 11 if accounts|length > 1 else 10 }}" class="px-3 py-4 text-center text-slate-400">No open positions match your filters.</td>
-      </tr>
-    </tbody>
-    <tfoot>
-      <tr class="border-t-2 border-slate-700 bg-slate-800/60 font-bold">
-        <td colspan="{{ 10 if accounts|length > 1 else 9 }}" class="px-3 py-2 text-right text-slate-300">Total money at stake <span id="open-positions-total-label" class="font-normal text-slate-500"></span></td>
-        <td id="open-positions-total-cost-value" class="px-3 py-2 text-right text-amber-300">{{ open_positions_cost_value | usd }}</td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
-<p class="text-xs text-slate-500 mt-2">Filtering only changes what's shown -- and now so does this total: it's the sum of just the currently visible open positions, so filtering to Shares only (or Options only, a ticker, or a date range) shows that slice's money-at-stake on its own instead of everything combined.</p>
+<p class="text-xs text-slate-500 mb-6">
+  <strong class="text-amber-400">Buy Date / Cost Price</strong> are a manual memo only -- jot down what you
+  remember paying so you're not staring at a blank row. They save automatically on blur, same as Trade Log's
+  notes fields, but they're <strong class="text-slate-300">not</strong> used in any gain/loss or tax math
+  anywhere in this app. The moment the real opening statement gets uploaded and this row disappears from
+  Needs Review for good, whatever you typed here is automatically deleted too -- there's nothing to clean up.
+</p>
 <script>
-  function formatUsd(value) {
-    const sign = value < 0 ? "-$" : "$";
-    return sign + Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  async function saveUnmatchedOverride(el) {
+    const payload = {
+      key: el.dataset.overrideKey,
+      field: el.dataset.field,
+      value: el.value,
+    };
+    el.classList.remove("border-emerald-500", "border-rose-500");
+    let ok = false;
+    try {
+      const resp = await fetch("/unmatched_close_override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      ok = resp.ok;
+    } catch (e) {
+      ok = false;
+    }
+    el.classList.add(ok ? "border-emerald-500" : "border-rose-500");
+    setTimeout(() => el.classList.remove("border-emerald-500", "border-rose-500"), 1500);
   }
-
-  function filterOpenPositions() {
-    const search = document.getElementById("open-ticker-search").value.trim().toLowerCase();
-    const from = document.getElementById("open-date-from").value;
-    const to = document.getElementById("open-date-to").value;
-    const equityType = document.getElementById("open-equity-type-filter").value;
-    const rows = document.querySelectorAll("#open-positions-body tr[data-ticker]");
-    let visible = 0;
-    let totalCostValue = 0;
-    rows.forEach((row) => {
-      const matchesTicker = !search || row.dataset.ticker.includes(search);
-      const matchesFrom = !from || row.dataset.openDate >= from;
-      const matchesTo = !to || row.dataset.openDate <= to;
-      const matchesEquityType = !equityType || row.dataset.equityType === equityType;
-      const show = matchesTicker && matchesFrom && matchesTo && matchesEquityType;
-      row.hidden = !show;
-      if (show) {
-        visible++;
-        totalCostValue += parseFloat(row.dataset.costValue);
-      }
-    });
-    document.getElementById("open-positions-count").textContent = visible + " of " + rows.length + " positions shown";
-    const emptyRow = document.getElementById("open-positions-empty-row");
-    if (emptyRow) emptyRow.hidden = visible !== 0;
-
-    document.getElementById("open-positions-total-cost-value").textContent = formatUsd(totalCostValue);
-    document.getElementById("open-positions-total-label").textContent =
-      visible === rows.length ? "" : "(" + visible + " filtered position" + (visible !== 1 ? "s" : "") + ")";
-  }
-
-  function clearOpenPositionFilters() {
-    document.getElementById("open-ticker-search").value = "";
-    document.getElementById("open-date-from").value = "";
-    document.getElementById("open-date-to").value = "";
-    document.getElementById("open-equity-type-filter").value = "";
-    filterOpenPositions();
-  }
-
-  filterOpenPositions();
 </script>
 {% endif %}
+
+
